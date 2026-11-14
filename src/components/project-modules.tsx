@@ -1,6 +1,8 @@
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { Badge } from './ui/badge';
 import { CodeEditor } from './code-editor';
-import { useContext, useEffect, useRef, useState } from 'react';
-import { FileUp, Plus, Trash2 } from 'lucide-react';
+import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, FileUp, Plus, Trash2 } from 'lucide-react';
 import { ProjectContext } from '@/project/context';
 import { parseModules, parseOperation } from '@/project/schema';
 import { operationPorts } from '@/project/blocks';
@@ -11,28 +13,33 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Field, IconButton } from './editor-ui';
 
+function LibrarySection({ title, children, defaultOpen = true, count }: { title: string; children: ReactNode; defaultOpen?: boolean; count?: number }) {
+  return <Collapsible defaultOpen={defaultOpen} className="library-category"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="category-toggle"><ChevronDown/><span>{title}</span>{count !== undefined && <Badge variant="secondary" className="library-section-count">{count}</Badge>}</Button></CollapsibleTrigger><CollapsibleContent forceMount className="library-section-content">{children}</CollapsibleContent></Collapsible>;
+}
 export function ProjectModules() {
   const { modules, createModule, updateModule, removeModule } = useContext(ProjectContext);
   const file = useRef<HTMLInputElement>(null);
   const [alias, setAlias] = useState('helper'), [url, setUrl] = useState(''), [error, setError] = useState('');
   const attempt = (action: () => void) => { try { action(); setError(''); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } };
   return <section className="project-libraries">
-    <div className="library-intro"><h3>JavaScript Libraries</h3><p>Import once. Use in any JavaScript block’s code or render function through <code>modules.alias</code>.</p></div>
+    <LibrarySection title="Import JS library">
     <div className="library-import-form"><Field label="Library alias"><Input aria-label="Library alias" value={alias} onChange={e => setAlias(e.target.value)}/></Field>
-    <Field label="ES module URL"><Input aria-label="Library URL" placeholder="https://esm.sh/package@version" value={url} onChange={e => setUrl(e.target.value)}/></Field>
+    <Field label="ES module URL"><Input aria-label="Library URL" aria-describedby="library-url-description" placeholder="https://esm.sh/package@version" value={url} onChange={e => setUrl(e.target.value)}/><p id="library-url-description" className="field-help">Paste a browser-ready ES module URL, such as https://esm.sh/package@version. The library is available project-wide in code and render functions as <code>modules.{alias || 'alias'}</code>.</p></Field>
     <div className="module-toolbar"><Button size="sm" onClick={() => attempt(() => { if (!url.trim()) throw new Error('Enter an ES module URL.'); if (!validVariable(alias)) throw new Error('Enter a JavaScript alias.'); createModule('', alias, url); setUrl(''); })}><Plus/>Add URL</Button><Button variant="outline" size="sm" onClick={() => file.current?.click()}><FileUp/>Import JS</Button><Button variant="ghost" size="sm" onClick={() => attempt(() => createModule('export const example = 42;', alias))}>New</Button></div>
     <input hidden ref={file} type="file" accept=".js,.mjs" multiple onChange={async e => { const files = Array.from(e.target.files ?? []); e.target.value = ''; try { for (const f of files) { if (f.size > 100000) throw new Error('Module exceeds 100 KB.'); createModule(await f.text(), f.name); } setError(''); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } }}/></div>
-    <details className="builtin-library"><summary>Included libraries</summary><div className="builtin-library-cards">{[
+    </LibrarySection>
+    <LibrarySection title="Included libraries" defaultOpen={false}><div className="builtin-library-cards">{[
       ['React', 'JSX rendering and component state', 'https://react.dev'],
       ['shadcn/ui', 'Button, Slider and Select components', 'https://ui.shadcn.com'],
       ['Radix UI', 'Accessible control primitives', 'https://www.radix-ui.com'],
       ['KaTeX', 'Accessible mathematical typesetting', 'https://katex.org'],
       ['TensorFlow.js', 'Tensor operations · bundled CPU backend · modules.tensorMath / modules.tf', 'https://www.tensorflow.org/js'],
-    ].map(([name,description,url]) => <a key={name} className="builtin-library-card" href={url} target="_blank" rel="noreferrer"><strong>{name}</strong><span>{description}</span><small>{url}</small></a>)}</div></details>
-    <div className="library-list-heading"><span>Project scope</span><span>{modules.length} imported</span></div>
+    ].map(([name,description,url]) => <a key={name} className="builtin-library-card" href={url} target="_blank" rel="noreferrer"><strong>{name}</strong><span>{description}</span><small>{url}</small></a>)}</div></LibrarySection>
+    <LibrarySection title="Project Libraries" count={modules.length}>
     {!modules.length && <div className="library-empty">No libraries yet.<p>Add an ES module URL or upload JavaScript to get started.</p></div>}
     {modules.map(module => <LibraryEditor key={module.id} module={module} save={next => attempt(() => updateModule(next))} remove={() => removeModule(module.id)}/>)}
-    {error && <p className="code-error" role="alert">{error}</p>}
+    </LibrarySection>
+    {error && <p className="code-error library-import-error" role="alert">{error}</p>}
   </section>;
 }
 function LibraryEditor({ module, save, remove }: { module: import('@/project/schema').ProjectModule; save: (module: import('@/project/schema').ProjectModule) => void; remove: () => void }) {

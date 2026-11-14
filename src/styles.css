@@ -238,10 +238,10 @@
 
 .library-tabs { position: sticky; top: 0; z-index: 2; background: var(--card); padding-top: 14px; }
 .tab-count { margin-left: 7px; font: 10px ui-monospace, monospace; background: var(--secondary); padding: 2px 5px; border-radius: 4px; }
-.project-libraries { padding: 6px 14px 18px; }
+.project-libraries { padding: 0 0 18px; }
 .library-intro h3 { font-size: 13px; font-weight: 600; margin: 8px 0; }
 .library-intro p, .library-empty { font-size: 11px; line-height: 1.7; color: var(--muted-foreground); }
-.library-import-form { margin: 18px 0; display: grid; gap: 12px; }
+.library-import-form { margin: 8px 0 12px; display: grid; gap: 12px; }
 .library-import-form .module-toolbar { flex-wrap: wrap; margin: 0; padding: 0; }
 .library-list-heading { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted-foreground); border-top: 1px solid var(--border); padding: 14px 0 9px; }
 .library-empty { border: 1px dashed var(--border); border-radius: 8px; padding: 18px 12px; text-align: center; }
@@ -346,3 +346,8 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .project-card-meta>span{display:inline-flex;align-items:center;gap:4px}
 .project-card-meta svg{width:11px;height:11px;stroke-width:1.5}
 @media(hover:none){.saved-palette-delete{opacity:1}}
+
+.library-section-count{margin-left:auto;font-size:9px}
+.library-import-error{padding:0 12px}
+
+.library-section-content[data-state=closed]{display:none}
