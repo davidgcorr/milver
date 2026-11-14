@@ -15,20 +15,48 @@ npm run dev
 
 Open the URL Vite prints. `npm run build` creates `dist/`, `npm run preview` serves the production build, and `npm test` runs the model tests.
 
-## GitHub Pages deployment
+## Continuous deployment
+
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) validates pull requests and deploys pushes to `main` to GitHub Pages and, when configured, Cloudflare Pages. Tests run before separate builds for the two hosting paths. Each deployment has its own job, so one platform's deployment failure does not stop the other. Pull requests and manual runs from other branches never deploy.
+
+### GitHub Pages
 
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) runs tests and builds the app on pull requests and pushes to `main`. After a successful build on `main`, it deploys `dist/` to GitHub Pages. You can also run it manually from the Actions tab with `main` selected. Pull requests only run validation.
 
 In the repository's **Settings → Pages → Build and deployment**, select **GitHub Actions** as the source ([Vite deployment guide](https://vite.dev/guide/static-deploy#github-pages)). Once this workflow is pushed to `main` and succeeds, the app will be available at <https://davidgcorr.github.io/reactflow-recipes/>. The workflow uses the built-in GitHub token; no personal access token or deployment secret is needed.
 
-The deployment build sets Vite's base URL to the repository path, so scripts, styles, and public links work under `/reactflow-recipes/`. Local development keeps its default root path. To check the Pages build locally:
+The deployment build sets Vite's base URL to the repository path (override the `PAGES_BASE_PATH` repository variable with `/` for a custom domain), so scripts, styles, and public links work under `/reactflow-recipes/`. Local development keeps its default root path. To check the Pages build locally:
 
 ```sh
 npm run build -- --base /reactflow-recipes/
+node scripts/check-deploy-build.mjs /reactflow-recipes/
 npm run preview
 ```
 
 Open `http://localhost:4173/reactflow-recipes/`.
+
+### Cloudflare Pages
+
+Create a **Direct Upload** Pages project in Cloudflare with production branch `main` (for example, `reactflow-recipes`). Follow [Cloudflare's CI deployment guide](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/) to create an API token with **Account → Cloudflare Pages → Edit**, scoped to the deployment account.
+
+In the GitHub repository's **Settings → Secrets and variables → Actions**, add:
+
+| Type | Name | Value |
+| --- | --- | --- |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
+| Secret | `CLOUDFLARE_API_TOKEN` | Pages API token |
+| Variable | `CLOUDFLARE_PAGES_PROJECT_NAME` | Existing Pages project name, e.g. `reactflow-recipes` |
+
+The Cloudflare deployment job stays disabled until the project-name variable is set. Once configured, a successful push to `main` or a manual workflow run on `main` uploads the root-path build to Cloudflare Pages. The deployment URL appears in the GitHub `cloudflare-pages` environment. Credentials are only supplied to the production deployment job. GitHub Pages continues to work without Cloudflare credentials.
+
+This workflow uploads prebuilt static assets; it does not create the Cloudflare project or configure a custom domain. Use Direct Upload so Cloudflare does not perform a second Git-triggered build. To check its build locally:
+
+```sh
+npm run build -- --base /
+node scripts/check-deploy-build.mjs /
+```
+
+The workflow checks HTML asset paths plus the public runtime, favicon and license file for both hosting paths before publishing. Local projects are stored per browser origin, so GitHub Pages and Cloudflare have separate local storage; export/import project JSON to move projects between them.
 
 ## Workspace
 
