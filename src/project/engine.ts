@@ -120,7 +120,7 @@ export class ProjectEngine {
         for (const [port, link] of Object.entries(node.aliases)) { const source = await visit(link.node); if (source.status === 'error' || source.status === 'blocked') throw new Error('Upstream block failed.'); if (!Object.hasOwn(source.outputs, link.port)) throw new Error('Upstream block has not executed.'); aliasOutputs[port] = source.outputs[link.port]; aliasEvents[port] = source.events[link.port] ?? 0; }
         began = performance.now();
         const operation = node.data.operation;
-        const signature = JSON.stringify([node.data.value, Object.entries(inputs).map(([k, v]) => [k, this.identity(v), inputEvents[k]]), Object.entries(aliasOutputs).map(([k, v]) => [k, this.identity(v)]), external[id]?.values, external[id]?.events, node.data.recipe === 'Clock' ? Math.floor((Date.now() - this.clockStart) / Math.max(16, Number(node.data.value) || 1000)) : null], signalReplacer);
+        const signature = JSON.stringify([node.data.value, Object.entries(inputs).map(([k, v]) => [k, this.identity(v), inputEvents[k]]), Object.entries(aliasOutputs).map(([k, v]) => [k, this.identity(v)]), external[id]?.values, external[id]?.events, ['Clock','Counter'].includes(node.data.recipe ?? '') ? Math.floor((Date.now() - this.clockStart) / Math.max(16, Number(node.data.value) || 1000)) : null], signalReplacer);
         const previous = this.cache.get(id);
         const hasTrigger = !!node.inputs.trigger;
         const initialEvent = (inputEvents.trigger ?? 0) > 0 || ![undefined, null, false, 0].includes(inputs.trigger as never);
@@ -193,7 +193,7 @@ export class ProjectEngine {
       if (data.recipe === 'Slider') { const config = JSON.parse(data.value); return publish(config.initial); }
       if (data.recipe === 'Selector') { const config = JSON.parse(data.value); return publish(config.options[config.selected ?? 0]); }
       if (data.recipe === 'Button') return publish(JSON.parse(data.value).count ?? 0);
-      if (data.recipe === 'Clock') return publish(Math.floor((Date.now() - this.clockStart) / Math.max(16, Number(data.value) || 1000)));
+      if (['Clock','Counter'].includes(data.recipe ?? '')) return publish(Math.floor((Date.now() - this.clockStart) / Math.max(16, Number(data.value) || 1000)));
       if (data.recipe === 'Trigger') {
         const active = Boolean(Object.values(inputs)[0]); let state = this.states.get(node.id); if (!state) { state = { active: false, count: 0 }; this.states.set(node.id, state); }
         if (active && !state.active) state.count = Number(state.count) + 1; state.active = active; return publish(state.count);

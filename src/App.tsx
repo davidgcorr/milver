@@ -1,9 +1,13 @@
+import { snapConnectedBlocks } from './block-snapping';
+import { BlockIcon } from './components/block-identity';
 import { ProjectsDialog } from './components/projects-dialog';
 import { RoughContext } from './components/rough-shapes';
 import { stringifySignal } from './signal-json';
 import { copySelection, parseClipboard, pasteSelection, mergeClipboardLibraries, type BlockClipboard } from './clipboard';
 import forwardExample from '../examples/transformer-forward.json?raw';
 import attentionExample from '../examples/attention-step-by-step.json?raw';
+import dictionaryExample from '../examples/tokenization-dictionary.json?raw';
+import nanogptExample from '../examples/nanogpt-characters.json?raw';
 import { MyBlocks } from './components/my-blocks';
 import { ResizablePanel } from './components/resizable-panel';
 import { withMath } from './default-libraries';
@@ -208,8 +212,12 @@ function Editor() {
   };
   const onNodesChange: OnNodesChange<BlockNode> = useCallback(changes => {
     if (changes.some(c => c.type === 'position' && c.dragging)) setUI(u => u.inspector ? { ...u, inspector: false } : u);
-    editCanvas(c => ({ ...c, nodes: applyNodeChanges(changes, c.nodes) }), changes.some(c => c.type === 'remove'));
-  }, [editCanvas]);
+    editCanvas(c => {
+      const nodes=applyNodeChanges(changes,c.nodes);
+      const moving=new Set(changes.flatMap(change=>change.type === 'position' && change.position ? [change.id] : []));
+      return { ...c, nodes: ui.snap && moving.size ? snapConnectedBlocks(nodes,c.edges,moving,12/flow.getZoom()) : nodes };
+    }, changes.some(c => c.type === 'remove'));
+  }, [editCanvas,ui.snap,flow]);
   const onEdgesChange: OnEdgesChange = useCallback(changes => {
     editCanvas(c => ({ ...c, edges: applyEdgeChanges(changes, c.edges) }), changes.some(c => c.type === 'remove'));
   }, [editCanvas]);
@@ -254,7 +262,7 @@ function Editor() {
     const saved: SavedBlock = { id: crypto.randomUUID(), name: (node.data.label || 'Untitled block').slice(0, 128), width: node.width ?? 240, height: node.height ?? 190, data: structuredClone(node.data), modules: structuredClone(root.modules ?? []) };
     snapshot(); replace({ ...root, myBlocks: [...(root.myBlocks ?? []), saved] }); notify('Saved to My Blocks');
   };
-  const insertSavedBlock = (saved: SavedBlock) => {
+  const insertSavedBlock = (saved: SavedBlock, position?: { x: number; y: number }) => {
     const root = documentRef.current, modules = [...(root.modules ?? [])];
     for (const module of saved.modules ?? []) {
       const existing = modules.find(m => m.alias === module.alias);
@@ -262,7 +270,8 @@ function Editor() {
       if (!existing) modules.push({ ...module, id: modules.some(m => m.id === module.id) ? crypto.randomUUID() : module.id });
     }
     const point = flow.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-    const node: BlockNode = { id: crypto.randomUUID(), type: 'block', position: { x: point.x - saved.width / 2, y: point.y - saved.height / 2 }, width: saved.width, height: saved.height, data: structuredClone(saved.data), selected: true };
+    const node: BlockNode = { id: crypto.randomUUID(), type: 'block', position: position ?? { x: point.x - saved.width / 2, y: point.y - saved.height / 2 }, width: saved.width, height: saved.height, data: structuredClone(saved.data), selected: true };
+    if (ui.snap) node.position = { x: Math.round(node.position.x / 20) * 20, y: Math.round(node.position.y / 20) * 20 };
     try { parseModules(modules); } catch (error) { notify(String(error)); return; }
     snapshot(); replace(updateCanvas({ ...root, modules }, pathRef.current, c => ({ ...c, nodes: [...c.nodes.map(n => ({ ...n, selected: false })), node] })));
   };
@@ -278,6 +287,8 @@ function Editor() {
   const updateProjectModule = (module: ProjectModule) => { const modules = (documentRef.current.modules ?? []).map(m => m.id === module.id ? module : m); parseModules(modules); snapshot(); replace({ ...documentRef.current, modules }); };
   const removeProjectModule = (id: string) => { snapshot(); replace({ ...documentRef.current, modules: documentRef.current.modules?.filter(m => m.id !== id) }); };
   const onDrop = (event: DragEvent) => {
+    const savedId = event.dataTransfer.getData('application/milver-saved-block');
+    if (savedId) { event.preventDefault(); const saved=documentRef.current.myBlocks?.find(block=>block.id===savedId); if(saved)insertSavedBlock(saved,flow.screenToFlowPosition({x:event.clientX,y:event.clientY})); return; }
     event.preventDefault(); const kind = event.dataTransfer.getData('application/milver') || event.dataTransfer.getData('application/flowbench');
     if (availableTemplates.some(t => t.kind === kind)) addBlock(kind, flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), event.dataTransfer.getData('application/milver-recipe'));
   };
@@ -391,7 +402,7 @@ function Editor() {
     crumbs.push({ label: parent?.data.label ?? 'Parent block', path: path.slice(0, index + 1) });
   }
 
-  return <TooltipProvider delayDuration={250}><RoughContext.Provider value={{ enabled: theme.rough === true, roughness: theme.roughness ?? 1 }}><ProjectContext.Provider value={{ myBlocks: document.myBlocks ?? [], saveBlock, insertSavedBlock, removeSavedBlock: id => { snapshot(); replace({ ...documentRef.current, myBlocks: documentRef.current.myBlocks?.filter(b => b.id !== id) }); }, modules: document.modules ?? [], catalog: projectRuntime.result?.catalog ?? [], values: projectValues, loadExample: example => { snapshot(); goTo([]); replace(parseDiagram(example === 'attention' ? attentionExample : forwardExample)); }, createModule: createProjectModule, updateModule: updateProjectModule, removeModule: removeProjectModule, addBlock: addProjectBlock }}><PreviewContext.Provider value={{ values: preview, emit, setValue: setSourceValue, saveState: saveBlockState, setProperty: setCodeProperty, report: reportMask }}><FlowContext.Provider value={{ update: updateEdge, snapshot }}><BlockContext.Provider value={{ snapshot, enter, movePort, setHeader: (id, showHeader) => editCanvas(c => ({ ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, data: { ...n.data, visuals: { ...n.data.visuals, showHeader } } } : n) })) }}><main className={`milver-workspace ${theme.rough ? 'rough-mode' : ''}`} aria-label="milver block diagram editor">
+  return <TooltipProvider delayDuration={250}><RoughContext.Provider value={{ enabled: theme.rough === true, roughness: theme.roughness ?? 1 }}><ProjectContext.Provider value={{ myBlocks: document.myBlocks ?? [], saveBlock, insertSavedBlock, openProject: next => { snapshot(); goTo([]); replace(next); }, removeSavedBlock: id => { snapshot(); replace({ ...documentRef.current, myBlocks: documentRef.current.myBlocks?.filter(b => b.id !== id) }); }, modules: document.modules ?? [], catalog: projectRuntime.result?.catalog ?? [], values: projectValues, loadExample: example => { snapshot(); goTo([]); replace(parseDiagram(example === 'nanogpt' ? nanogptExample : example === 'dictionary' ? dictionaryExample : example === 'attention' ? attentionExample : forwardExample)); }, createModule: createProjectModule, updateModule: updateProjectModule, removeModule: removeProjectModule, addBlock: addProjectBlock }}><PreviewContext.Provider value={{ values: preview, emit, setValue: setSourceValue, saveState: saveBlockState, setProperty: setCodeProperty, report: reportMask }}><FlowContext.Provider value={{ update: updateEdge, snapshot }}><BlockContext.Provider value={{ snapshot, enter, movePort, setHeader: (id, showHeader) => editCanvas(c => ({ ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, data: { ...n.data, visuals: { ...n.data.visuals, showHeader } } } : n) })) }}><main className={`milver-workspace ${theme.rough ? 'rough-mode' : ''}`} aria-label="milver block diagram editor">
     <ReactFlow<BlockNode> style={{ background: canvasBackground(theme) }}
       nodes={nodes} edges={edges.map(e => ({ ...e, type: 'recipe', data: { route: e.type === 'default' ? 'bezier' : 'smoothstep', ...e.data } }))} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
       onConnect={connect} isValidConnection={validConnection} onDrop={onDrop}
@@ -420,7 +431,7 @@ function Editor() {
       <IconButton label="Pan (H)" aria-pressed={mode === 'pan'} variant={mode === 'pan' ? 'secondary' : 'ghost'} onClick={() => setMode('pan')}><Hand/></IconButton><Separator orientation="vertical"/>
       <IconButton label="Undo" disabled={!history.past.length} onClick={undo}><Undo2/></IconButton><IconButton label="Redo" disabled={!history.future.length} onClick={redo}><Redo2/></IconButton><Separator orientation="vertical"/>
       <IconButton label="Clear canvas" disabled={!nodes.length && !edges.length} onClick={() => { editCanvas(c => ({ ...c, nodes: [], edges: [] })); setActivePort(null); notify('Canvas cleared · Undo to restore'); }}><Eraser/></IconButton>
-      <IconButton label="Snap to grid" aria-pressed={ui.snap} variant={ui.snap ? 'secondary' : 'ghost'} onClick={() => setUI(u => ({ ...u, snap: !u.snap }))}><Grid3X3/></IconButton>
+      <IconButton label="Snap to grid and connected ports" aria-pressed={ui.snap} variant={ui.snap ? 'secondary' : 'ghost'} onClick={() => setUI(u => ({ ...u, snap: !u.snap }))}><Grid3X3/></IconButton>
     </Card>
 
     <Card className="floating-island actions-island" role="toolbar" aria-label="Diagram actions">
@@ -435,11 +446,10 @@ function Editor() {
       <div role="tabpanel" id="library-panel-libraries" aria-labelledby="library-tab-libraries" hidden={libraryTab !== 'libraries'}><ProjectModules/></div>
       <div role="tabpanel" id="library-panel-my-blocks" aria-labelledby="library-tab-my-blocks" hidden={libraryTab !== 'my-blocks'}><MyBlocks addExample={recipe => addBlock('javascript', undefined, recipe)}/></div>
       <div role="tabpanel" id="library-panel-blocks" aria-labelledby="library-tab-blocks" hidden={libraryTab !== 'blocks'}>
-        {nested && <div className="nested-library-note"><Network/><span>Input and Output blocks define<br/>this parent's external ports.</span></div>}
         {[
           ...['Sources', 'Operators & functions', 'JavaScript', 'Sinks'].map(title => ({ title, items: Object.entries(jsRecipes).filter(([name, t]) => title === 'Sources' ? ['JavaScript datatypes', 'JavaScript sources'].includes(t.category) : title === 'Operators & functions' ? t.category === 'Operators' : title === 'Sinks' ? t.category === 'Sinks' && name !== 'MathView' : ['DOM', 'WebAssembly'].includes(name)).map(([recipe, t]) => ({ ...templates.find(t => t.kind === 'javascript')!, label: t.label, symbol: t.symbol, inputs: t.inputs, outputs: t.outputs, description: `${t.label} · JavaScript`, recipe })).concat(availableTemplates.filter(t => title === 'Sinks' ? t.kind === 'renderer' : false).map(t => ({ ...t, recipe: '' }))) })),
           { title: 'Structure', items: availableTemplates.filter(t => ['subsystem', 'inport', 'outport'].includes(t.kind)).map(t => ({ ...t, recipe: '' })) },
-        ].map(category => <Collapsible key={category.title} defaultOpen className="library-category"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="category-toggle"><ChevronDown/><span>{category.title}</span></Button></CollapsibleTrigger><CollapsibleContent><div className="palette-grid">{category.items.map(t => <Button key={t.recipe || t.kind} variant="ghost" className="palette-tile" draggable onDragStart={e => { e.dataTransfer.setData('application/milver', t.kind); e.dataTransfer.setData('application/milver-recipe', t.recipe); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => addBlock(t.kind, undefined, t.recipe)} title={t.description}><span className={`palette-glyph ${t.outputs > 0 ? 'palette-source' : ''}`}>{t.kind === 'subsystem' ? <Network/> : t.symbol}{t.inputs > 0 && <i className="palette-input" aria-label="Accepts input"/>}{t.outputs > 0 && <i className="palette-output" aria-label="Produces output"/>}</span><span>{t.label}</span></Button>)}</div>{!category.items.length && <p className="category-empty">No blocks yet</p>}</CollapsibleContent></Collapsible>)}
+        ].map(category => <Collapsible key={category.title} defaultOpen className="library-category"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="category-toggle"><ChevronDown/><span>{category.title}</span></Button></CollapsibleTrigger><CollapsibleContent><div className="palette-grid">{category.items.map(t => <Button key={t.recipe || t.kind} variant="ghost" className="palette-tile" draggable onDragStart={e => { e.dataTransfer.setData('application/milver', t.kind); e.dataTransfer.setData('application/milver-recipe', t.recipe); e.dataTransfer.effectAllowed = 'copy'; }} onClick={() => addBlock(t.kind, undefined, t.recipe)} title={t.description}><span className={`palette-glyph ${t.outputs > 0 ? 'palette-source' : ''}`}><BlockIcon data={{ kind: t.kind, recipe: t.recipe }}/>{t.inputs > 0 && <i className="palette-input" aria-label="Accepts input"/>}{t.outputs > 0 && <i className="palette-output" aria-label="Produces output"/>}</span><span>{t.label}</span></Button>)}</div>{!category.items.length && <p className="category-empty">No blocks yet</p>}</CollapsibleContent></Collapsible>)}
       </div></div>
     </Card></CollapsibleContent></Collapsible>
 

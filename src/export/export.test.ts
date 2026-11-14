@@ -21,12 +21,12 @@ describe('publication exports', () => {
     d.nodes = [makeNode('constant', { x: 0, y: 0 }, 'only')]; d.edges = [];
     const render = () => buildScene(d, collectPages(d, [], 'current'), options);
     const expanded = render();
-    expect(expanded.body).toContain('gens › constant');
+    expect(expanded.body).toContain('Sources › Constant');
     expect(expanded.body).toContain('M0 25H164');
     expect(expanded.body).toContain('y="136" font-size="10"');
     d.nodes[0].data.visuals = { showHeader: false, showLabel: false };
     const hidden = render();
-    expect(hidden.body).not.toContain('gens › constant');
+    expect(hidden.body).not.toContain('Sources › Constant');
     expect(hidden.body).not.toContain('y="136" font-size="10"');
     expect(expanded.height - hidden.height).toBe(28);
   });

@@ -1,3 +1,5 @@
+import { BlockTrail } from './block-identity';
+import { blockPresentation } from '@/block-presentation';
 import { RenderBoundary } from './render-boundary';
 import { RoughBlockOutline } from './rough-shapes';
 import { isControlled } from '@/block-code';
@@ -9,7 +11,7 @@ import { Handle, NodeResizer, Position, useUpdateNodeInternals, type NodeProps }
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { blockTypePath, type BlockNode, type Port } from '@/model';
+import { type BlockNode, type Port } from '@/model';
 import { portAtBorder, portOffset } from '@/ports';
 import { cn } from '@/lib/utils';
 
@@ -41,7 +43,6 @@ function BlockContent({ id, data, selected, width = 164, height = 116 }: NodePro
   const ink = visuals.foreground ?? 'var(--primary)';
   const fill = visuals.background ?? 'var(--card)';
   const parent = data.kind === 'subsystem';
-  const typePath = blockTypePath(data.kind);
   const boundary = data.kind === 'inport' || data.kind === 'outport';
   if (boundary) return <div ref={block} tabIndex={0} className={cn('interface-port-node', selected && 'is-selected')} style={{ color: ink, background: fill }} aria-label={`${data.label} · parent ${data.kind === 'inport' ? 'input' : 'output'}`}>
     <span className="interface-port-symbol">{data.kind === 'inport' ? '→' : '←'}</span><RoughBlockOutline id={id} width={28} height={28} circle/>
@@ -51,7 +52,7 @@ function BlockContent({ id, data, selected, width = 164, height = 116 }: NodePro
   return <Card ref={block} tabIndex={0} onDoubleClick={event => { if (['javascript', 'renderer'].includes(data.kind)) { event.stopPropagation(); setInteractive(true); } }} onKeyDown={event => { if (['javascript', 'renderer'].includes(data.kind) && event.key === 'Enter' && event.target === event.currentTarget) setInteractive(true); }} className={cn('diagram-block', selected && 'block-selected', interactive && 'block-editing', parent && 'parent-block', boundary && 'interface-block', runtime?.status === 'error' && 'runtime-block-error')} style={{ background: fill, color: ink, borderRadius: visuals.radius, '--block-ink': ink, ...(visuals.foreground ? { '--primary': visuals.foreground, '--muted-foreground': visuals.foreground } : {}) } as React.CSSProperties}>
     <RoughBlockOutline id={id} width={width} height={height}/>
     <NodeResizer isVisible={selected && !isControlled(data, 'width') && !isControlled(data, 'height')} minWidth={120} minHeight={90} color="var(--primary)" onResizeStart={snapshot}/>
-    {visuals.showHeader !== false ? <div className="block-type-trail"><span>{typePath[0]}</span><ChevronRight/><span>{data.recipe?.toLowerCase() ?? data.operation?.type ?? typePath[1]}</span><button type="button" className="type-collapse nodrag nopan" disabled={isControlled(data, 'visuals.showHeader')} aria-label="Collapse block type" aria-expanded="true" onClick={event => { event.stopPropagation(); setHeader(id, false); }} onDoubleClick={event => event.stopPropagation()}><ChevronDown/></button></div> : <button type="button" className="block-type-expand nodrag nopan" disabled={isControlled(data, 'visuals.showHeader')} aria-label="Show block type" aria-expanded="false" onClick={event => { event.stopPropagation(); setHeader(id, true); }} onDoubleClick={event => event.stopPropagation()}><ChevronDown/></button>}
+    {visuals.showHeader !== false ? <div className="block-type-trail" title={blockPresentation(data).trail.join(' > ')}><BlockTrail data={data}/><button type="button" className="type-collapse nodrag nopan" disabled={isControlled(data, 'visuals.showHeader')} aria-label="Collapse block type" aria-expanded="true" onClick={event => { event.stopPropagation(); setHeader(id, false); }} onDoubleClick={event => event.stopPropagation()}><ChevronDown/></button></div> : <button type="button" className="block-type-expand nodrag nopan" disabled={isControlled(data, 'visuals.showHeader')} aria-label="Show block type" aria-expanded="false" onClick={event => { event.stopPropagation(); setHeader(id, true); }} onDoubleClick={event => event.stopPropagation()}><ChevronDown/></button>}
     {snapGuide && <div aria-hidden="true" className={`port-snap-guide ${snapGuide.side === 'left' || snapGuide.side === 'right' ? 'horizontal' : 'vertical'}`} style={snapGuide.side === 'left' || snapGuide.side === 'right' ? { top: `${snapGuide.offset * 100}%` } : { left: `${snapGuide.offset * 100}%` }}/>}
 
     <div className={cn("block-body", interactive && "nodrag nopan")} style={{ color: ink, visibility: visuals.showValue === false ? 'hidden' : undefined }}>{data.kind === 'javascript' ? <ModuleMask id={id} ports={data.ports} dependencies={data.dependencies} wasm={data.wasm} interactive={interactive} source={data.module} render={data.render} state={data.state} value={data.value} color={ink} background={visuals.background ?? 'transparent'}/> : data.kind === 'module' ? <span className="shared-block-symbol">{project.modules.find(m => m.id === data.projectModuleId)?.alias ?? 'Module missing'}</span> : data.operation ? <div className="shared-block-preview"><span>{data.operation.type === 'construct' ? `new ${data.operation.exportName}` : data.operation.member ?? data.operation.exportName ?? 'run()'}</span><small>{runtime?.error ?? runtime?.status ?? 'Waiting for runtime'}</small></div> : data.kind === 'renderer' ? <ValueRenderer id={id} interactive={interactive} data={data} settings={data.renderer} color={ink} background={visuals.background ?? 'transparent'}/> : data.kind === 'python' ? <span className="block-value">Py</span> : parent ? <div className="subsystem-symbol"><span/><i/><span/><i/><span/></div> : boundary ? <span className="interface-symbol">{data.kind === 'inport' ? '↳' : '↗'}</span> : data.kind === 'scope' ? <svg width="55" height="27" viewBox="0 0 55 27"><path d="M1 20h8L17 5l10 17 10-12 8 7h9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg> : <span className="block-value">{data.kind === 'gain' ? `× ${data.value}` : data.value || 'ƒ'}</span>}</div>

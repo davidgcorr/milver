@@ -11,7 +11,7 @@ export type Side = 'left' | 'right' | 'top' | 'bottom';
 export type Port = { id: string; name: string; type: 'input' | 'output'; side: Side; offset?: number; variable?: string };
 export type ThemeSettings = { rough?: boolean; roughness?: number; showGrid?: boolean; canvasBackground?: 'plain' | 'aurora' | 'ocean' | 'sunset'; mode: 'light' | 'dark'; hue: number; chroma: number; radius: number };
 export type BlockVisuals = { background?: string; foreground?: string; showHeader?: boolean; showLabel?: boolean; showValue?: boolean; showPortLabels?: boolean; radius?: number };
-export type FlowSettings = { route?: 'smoothstep' | 'bezier'; points?: { x: number; y: number }[]; animation?: 'none' | 'dash' | 'pulse' | 'glow'; animationSize?: number; speed?: number; reverse?: boolean; color?: string; width?: number };
+export type FlowSettings = { routePoints?: { x: number; y: number }[]; route?: 'smoothstep' | 'bezier'; points?: { x: number; y: number }[]; animation?: 'none' | 'dash' | 'pulse' | 'glow'; animationSize?: number; speed?: number; reverse?: boolean; color?: string; width?: number };
 export type Canvas = { nodes: BlockNode[]; edges: Edge[]; viewport: Viewport };
 export type BlockData = {
   label: string; kind: string; description: string; color: string; value: string; ports: Port[];
@@ -32,7 +32,8 @@ export type BlockData = {
 };
 export type BlockNode = Node<BlockData, 'block'>;
 export type SavedBlock = { id: string; name: string; width: number; height: number; data: BlockData; modules?: ProjectModule[] };
-export type Diagram = Canvas & { version: 1; name: string; theme?: ThemeSettings; modules?: ProjectModule[]; myBlocks?: SavedBlock[] };
+export type ProjectMetadata = { author?: string; createdAt?: string; updatedAt?: string };
+export type Diagram = Canvas & { metadata?: ProjectMetadata; version: 1; name: string; theme?: ThemeSettings; modules?: ProjectModule[]; myBlocks?: SavedBlock[] };
 export const defaultTheme: ThemeSettings = { mode: 'light', hue: 0, chroma: 0, radius: 10, rough: false, roughness: 1, showGrid: true, canvasBackground: 'plain' };
 export const defaultViewport: Viewport = { x: 80, y: 160, zoom: 1 };
 export const colors = ['#171717', '#404040', '#525252', '#737373', '#a3a3a3', '#d4d4d4'];
@@ -44,7 +45,7 @@ export const templates = [
   { kind: 'scope', label: 'Scope', description: 'A signal output endpoint', symbol: '⌁', value: '', inputs: 1, outputs: 0 },
   { kind: 'custom', label: 'Custom block', description: 'Define your own block', symbol: 'ƒ', value: 'f(x)', inputs: 1, outputs: 1 },
   { kind: 'javascript', label: 'JS module', description: 'A programmable, input-driven mask', symbol: 'JS', value: '1', inputs: 1, outputs: 1 },
-  { kind: 'renderer', label: 'Math / value viewer', description: 'Inspect numbers, vectors, matrices and tensors', symbol: '[ ]', value: '', inputs: 1, outputs: 0 },
+  { kind: 'renderer', label: 'Math viewer', description: 'Inspect numbers, vectors, matrices and tensors', symbol: '[ ]', value: '', inputs: 1, outputs: 0 },
   { kind: 'module', label: 'Import module', description: 'Import functions, classes and constants for the project', symbol: '↓JS', value: '', inputs: 0, outputs: 0 },
   { kind: 'compute', label: 'JS computation', description: 'Run code in the shared project runtime', symbol: 'ƒ()', value: 'null', inputs: 1, outputs: 1 },
   { kind: 'python', label: 'Python code', description: 'Editable Python source for your own runtime', symbol: 'Py', value: '', inputs: 1, outputs: 1 },
@@ -52,11 +53,6 @@ export const templates = [
   { kind: 'inport', label: 'Input', description: 'Expose an input on the parent', symbol: '→', value: '', inputs: 0, outputs: 1 },
   { kind: 'outport', label: 'Output', description: 'Expose an output on the parent', symbol: '→', value: '', inputs: 1, outputs: 0 },
 ];
-export function blockTypePath(kind: string): [string, string] {
-  const category = ['javascript', 'python', 'compute', 'module'].includes(kind) ? 'code' : kind === 'subsystem' ? 'canvas' : kind === 'inport' || kind === 'outport' ? 'ports' : 'gens';
-  const label = kind === 'subsystem' ? 'parent' : kind === 'inport' ? 'input' : kind === 'outport' ? 'output' : kind;
-  return [category, label];
-}
 export const defaultModule = `export default function mount({ element, inputs, value, emit }) {
   const signal = inputs['in-0'] ?? Number(value);
   element.textContent = 'JS · ' + signal;
@@ -126,13 +122,21 @@ export function updateCanvas<T extends Canvas>(root: T, path: string[], transfor
 function serializeCanvas(canvas: Canvas): Canvas {
   return { viewport: canvas.viewport, nodes: canvas.nodes.map(({ id, type, position, width, height, data }) => ({ id, type, position, width: width ?? 164, height: height ?? 116, data: { ...data, ...(data.canvas ? { canvas: serializeCanvas(data.canvas) } : {}) } })), edges: canvas.edges.map(({ id, source, target, sourceHandle, targetHandle, type, data }) => ({ id, source, target, sourceHandle, targetHandle, type: type ?? 'smoothstep', ...(data ? { data } : {}) })) };
 }
-export function serializeDiagram(diagram: Diagram): string { return JSON.stringify({ version: 1, name: diagram.name, ...(diagram.theme ? { theme: diagram.theme } : {}), ...(diagram.modules ? { modules: diagram.modules } : {}), ...(diagram.myBlocks ? { myBlocks: diagram.myBlocks } : {}), ...serializeCanvas(diagram) }, signalReplacer, 2); }
+export function serializeDiagram(diagram: Diagram): string { return JSON.stringify({ version: 1, name: diagram.name, ...(diagram.metadata ? { metadata: diagram.metadata } : {}), ...(diagram.theme ? { theme: diagram.theme } : {}), ...(diagram.modules ? { modules: diagram.modules } : {}), ...(diagram.myBlocks ? { myBlocks: diagram.myBlocks } : {}), ...serializeCanvas(diagram) }, signalReplacer, 2); }
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isSide = (v: unknown): v is Side => ['left', 'right', 'top', 'bottom'].includes(String(v));
 export function parseDiagram(json: string): Diagram {
   const d: unknown = JSON.parse(json, signalReviver);
   if (!record(d) || d.version !== 1 || typeof d.name !== 'string' || !Array.isArray(d.nodes) || !Array.isArray(d.edges)) throw new Error('Expected version 1, a name, nodes, and edges.');
+  let metadata: ProjectMetadata | undefined;
+  if (d.metadata !== undefined) {
+    if (!record(d.metadata)) throw new Error('Invalid project metadata.');
+    const { author, createdAt, updatedAt } = d.metadata;
+    if (author !== undefined && (typeof author !== 'string' || author.length > 128)) throw new Error('Invalid project author.');
+    for (const date of [createdAt, updatedAt]) if (date !== undefined && (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(date) || !Number.isFinite(Date.parse(date)))) throw new Error('Invalid project date.');
+    metadata = { ...(author !== undefined ? { author: author as string } : {}), ...(createdAt !== undefined ? { createdAt: createdAt as string } : {}), ...(updatedAt !== undefined ? { updatedAt: updatedAt as string } : {}) };
+  }
   let totalNodes = 0; let totalEdges = 0;
   function parseCanvas(value: unknown, depth: number): Canvas {
     if (depth > 16) throw new Error('Nested canvases can be at most 16 levels deep.');
@@ -211,13 +215,14 @@ export function parseDiagram(json: string): Diagram {
       return { id: b.id, name: b.name, width: parsed.width!, height: parsed.height!, data: parsed.data, ...(b.modules !== undefined ? { modules: parseModules(b.modules) } : {}) };
     });
   }
-  return { version: 1, name: d.name, ...(myBlocks ? { myBlocks } : {}), ...(theme ? { theme } : {}), ...(d.modules !== undefined ? { modules: parseModules(d.modules) } : {}), ...parseCanvas(d, 0) };
+  return { version: 1, name: d.name, ...(metadata ? { metadata } : {}), ...(myBlocks ? { myBlocks } : {}), ...(theme ? { theme } : {}), ...(d.modules !== undefined ? { modules: parseModules(d.modules) } : {}), ...parseCanvas(d, 0) };
 }
 
 export function parseFlowSettings(value: unknown): FlowSettings {
   if (!record(value)) throw new Error('Invalid connection settings.');
-  const { route, points, animation, animationSize, speed, reverse, color, width } = value;
+  const { route, points, routePoints, animation, animationSize, speed, reverse, color, width } = value;
   if (route !== undefined && route !== 'smoothstep' && route !== 'bezier' || animation !== undefined && !['none', 'dash', 'pulse', 'glow'].includes(String(animation)) || animationSize !== undefined && (!finite(animationSize) || animationSize < 1 || animationSize > 32) || speed !== undefined && (!finite(speed) || speed < 0.1 || speed > 20) || width !== undefined && (!finite(width) || width < 1 || width > 8) || reverse !== undefined && typeof reverse !== 'boolean' || color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) throw new Error('Invalid connection settings.');
   if (points !== undefined && (!Array.isArray(points) || points.length > 100 || points.some(p => !record(p) || !finite(p.x) || !finite(p.y)))) throw new Error('Invalid connection waypoints.');
-  return Object.fromEntries(Object.entries({ route, points, animation, animationSize, speed, reverse, color, width }).filter(([, v]) => v !== undefined)) as FlowSettings;
+  if (routePoints !== undefined && (!Array.isArray(routePoints) || routePoints.length > 200 || routePoints.some(p => !record(p) || !finite(p.x) || !finite(p.y)))) throw new Error('Invalid orthogonal route points.');
+  return Object.fromEntries(Object.entries({ route, points, routePoints, animation, animationSize, speed, reverse, color, width }).filter(([, v]) => v !== undefined)) as FlowSettings;
 }

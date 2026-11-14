@@ -44,8 +44,13 @@ export async function renderGif(scene: ExportScene, options: ExportOptions, onPr
     if (frames > 1) {
       context.fillStyle = scene.palette.primary;
       for (const wire of paths) {
-        const point = wire.path.getPointAtLength((frame / frames) * wire.length);
-        context.beginPath(); context.arc((point.x + wire.x) * size.scale, (point.y + wire.y) * size.scale, Math.max(2, 3 * size.scale), 0, Math.PI * 2); context.fill();
+        const progress = frame / frames;
+        const point = wire.path.getPointAtLength((wire.reverse ? 1 - progress : progress) * wire.length);
+        context.fillStyle = wire.color ?? scene.palette.primary;
+        context.shadowColor = wire.color ?? scene.palette.primary;
+        context.shadowBlur = wire.glow ? (wire.animationSize ?? 7) * size.scale : 0;
+        context.beginPath(); context.arc((point.x + wire.x) * size.scale, (point.y + wire.y) * size.scale, (wire.animationSize ?? 6) / 2 * size.scale, 0, Math.PI * 2); context.fill();
+        context.shadowBlur = 0;
       }
     }
     const rgba = context.getImageData(0, 0, size.width, size.height).data;

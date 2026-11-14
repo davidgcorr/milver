@@ -15,19 +15,15 @@ try {
     };
     const wire=(from,to,index=0)=>edges.push({id:`${from}-${to}-${index}`,source:from,sourceHandle:'out-0',target:to,targetHandle:`in-${index}`,type:'smoothstep'});
     const matrix=(id,x,y,label,value)=>block(id,'Matrix',x,y,label,value);
-    if(full){
-      matrix('tokens',0,300,'X · token embeddings · 2 × 2',[[1,0],[0,1]]);
-      for(const [id,y,weights] of [['query',0,[[1,.5],[0,1]]],['key',300,[[1,0],[.5,1]]],['value',600,[[1,2],[3,1]]]]){
-        matrix(`w-${id}`,0,y+900,`W${id[0]} · 2 × 2`,weights);
-        block(id,'MatMul',340,y,`${id[0].toUpperCase()+id.slice(1)} · X W${id[0]}`);
-        wire('tokens',id);wire(`w-${id}`,id,1);
-      }
-    }else{
-      matrix('query',0,0,'Q · queries · 2 × 2',[[1,.5],[0,1]]);
-      matrix('key',0,300,'K · keys · 2 × 2',[[1,0],[.5,1]]);
-      matrix('value',0,600,'V · values · 2 × 2',[[1,2],[3,1]]);
+    const text=block('text','Text',0,300,'Text · the cat');text.data.value='the cat';
+    block('tokenizer','WordTokenizer',340,300,'Word dictionary → token IDs');wire('text','tokenizer');
+    block('tokens','Embedding',680,300,'Embedding lookup · IDs → X');wire('tokenizer','tokens');
+    for(const [id,y,weights] of [['query',0,[[1,.5],[0,1]]],['key',300,[[1,0],[.5,1]]],['value',600,[[1,2],[3,1]]]]){
+      matrix(`w-${id}`,680,y+900,`W${id[0]} · 2 × 2`,weights);
+      block(id,'MatMul',1020,y,`${id[0].toUpperCase()+id.slice(1)} · X W${id[0]}`);
+      wire('tokens',id);wire(`w-${id}`,id,1);
     }
-    const x=full?680:340;
+    const x=1360;
     block('key-transpose','Transpose',x,300,'Kᵀ · transpose keys');wire('key','key-transpose');
     block('scores','MatMul',x+340,0,'Q Kᵀ · attention scores');wire('query','scores');wire('key-transpose','scores',1);
     block('scaled-scores','Gain',x+680,0,'Scale · 1 / √dₖ',1/Math.sqrt(2));wire('scores','scaled-scores');
@@ -49,8 +45,19 @@ try {
       last='norm2';end+=2380;
     }
     block('output','Viewer',end,300,full?'Transformer output · 2 × 2':'Projected attention output · 2 × 2');wire(last,'output');
-    const project={version:1,name:full?'Transformer forward · explicit single head':'Attention · step by step',modules:[mathLibrary],nodes,edges,viewport:{x:40,y:80,zoom:full?.2:.32}};
+    const project={version:1,metadata:{author:'milver',updatedAt:'2026-11-12'},name:full?'Transformer forward · explicit single head':'Attention · step by step',modules:[mathLibrary],nodes,edges,viewport:{x:40,y:80,zoom:full?.2:.32}};
     const source=serializeDiagram(project);parseDiagram(source);
     await writeFile(new URL(`../examples/${full?'transformer-forward':'attention-step-by-step'}.json`,import.meta.url),source+'\n');
   }
+  const text=makeJsNode('Text',{x:0,y:150},'text');text.data.value='dictionary';text.data.label='Text · dictionary';
+  const tokenizer=makeJsNode('SubwordTokenizer',{x:340,y:150},'tokenizer');tokenizer.data.label='Greedy subwords · dict | ion | ary';
+  const ids=makeNode('renderer',{x:680,y:0},'ids');ids.data.label='Token IDs · [1, 2, 3]';
+  const embeddings=makeJsNode('Embedding',{x:680,y:300},'embedding');embeddings.data.value=JSON.stringify({ids:[1,2,3],table:[[0,0],[1,0],[0,1],[1,1]]});embeddings.data.label='Dictionary embedding lookup';
+  const output=makeNode('renderer',{x:1020,y:300},'output');output.data.label='Embedding rows · 3 × 2';
+  const nodes=[text,tokenizer,ids,embeddings,output].map(node=>({...node,width:260,height:210}));
+  const edges=[['text','tokenizer'],['tokenizer','ids'],['tokenizer','embedding'],['embedding','output']].map(([source,target])=>({id:`${source}-${target}`,source,target,sourceHandle:'out-0',targetHandle:'in-0',type:'smoothstep'}));
+  const dictionary={version:1,metadata:{author:'milver',updatedAt:'2026-11-12'},name:'Tokenizing dictionary · subword vocabulary',modules:[mathLibrary],nodes,edges,viewport:{x:300,y:100,zoom:.65}};
+  const json=serializeDiagram(dictionary);parseDiagram(json);
+  await writeFile(new URL('../examples/tokenization-dictionary.json',import.meta.url),json+'\n');
+
 } finally { await server.close(); }

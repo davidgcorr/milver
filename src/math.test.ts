@@ -6,6 +6,7 @@ import { jsRecipes, makeJsNode } from './js-recipes';
 import { exampleDiagram, parseDiagram, serializeDiagram } from './model';
 import { mathLibrary } from './default-libraries';
 import katex from 'katex';
+import * as React from 'react';
 
 
 describe('numeric kernels for a transformer forward pass', () => {
@@ -81,7 +82,7 @@ it.each([['transformer',forwardExample],['attention',attentionExample]])('execut
     }
     const module=await import(/* @vite-ignore */ `data:text/javascript;base64,${Buffer.from(buildBlockModule(node.data.module!,node.data.render!)).toString('base64')}`);
     const state:Record<string,unknown>={};
-    const mounted=await module.default({inputs,state,element:{},value:node.data.value,modules:{math,tensorMath:math},emit:(value:unknown)=>{outputs[node.id]=value;},ui:{latex:()=>{}}});
+    const mounted=await module.default({inputs,state,element:{style:{}},value:node.data.value,modules:{math,tensorMath:math},emit:(value:unknown)=>{outputs[node.id]=value;},ui:{latex:()=>{},React,createRoot:()=>({render(){},unmount(){}})}});
     if(node.id==='norm2') {
       expect(math.shape(state.result)).toEqual([2,2]);
       expect((state.result as number[][]).flat().every(Number.isFinite)).toBe(true);

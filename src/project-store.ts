@@ -1,4 +1,5 @@
 import { parseDiagram, serializeDiagram, type Diagram } from './model';
+export const projectsChangedEvent = 'milver-projects-changed';
 export const projectsKey = 'milver.projects.v1';
 export type StoredProject = { id: string; name: string; updatedAt: string; json: string };
 export function readProjects(storage: Pick<Storage, 'getItem'>): StoredProject[] {
@@ -16,8 +17,9 @@ export function readProjects(storage: Pick<Storage, 'getItem'>): StoredProject[]
 export function writeProjects(storage: Pick<Storage, 'setItem'>, projects: StoredProject[]) {
   // A failed/quota-limited write leaves both the previous store and UI intact.
   storage.setItem(projectsKey, JSON.stringify(projects));
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(projectsChangedEvent));
 }
-export function storeProject(diagram: Diagram, id = crypto.randomUUID()): StoredProject {
+export function storeProject(diagram: Diagram, id: string = crypto.randomUUID()): StoredProject {
   const json = serializeDiagram(diagram);parseDiagram(json);
   return { id, name: diagram.name, updatedAt: new Date().toISOString(), json };
 }

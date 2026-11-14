@@ -44,7 +44,7 @@ export function useProjectRuntime(document: Diagram, external: Record<string, Ex
   }, [enabled, definition, generation, compileError, publish]);
   useEffect(() => { if (enabled && live && !compileError) publish('live'); }, [enabled, execution, externals, live, generation, compileError, publish]);
   useEffect(() => { if (steps && enabled) publish('step'); }, [steps, enabled, publish]);
-  const hasClock = plan.nodes.some(n => n.data.recipe === 'Clock');
+  const hasClock = plan.nodes.some(n => ['Clock','Counter'].includes(n.data.recipe ?? ''));
   useEffect(() => { if (!live || !enabled || !hasClock) return; const timer = setInterval(() => publish('live'), 50); return () => clearInterval(timer); }, [live, enabled, hasClock, publish]);
   const stop = () => { setLive(false); pending.current = null; inFlight.current = false; setBusy(false); frame.current?.contentWindow?.postMessage({ type: 'stop', token: frame.current.dataset.token }, '*'); setGeneration(g => g + 1); };
   return { enabled, result, error: compileError || error, busy, live, setLive, step: () => setSteps(s => s + 1), reset: () => setGeneration(g => g + 1), stop };

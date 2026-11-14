@@ -1,14 +1,26 @@
-import { useContext } from 'react';
+import { ProjectPaletteCard } from './project-palette-card';
+import { exampleProjects } from '@/example-projects';
+import { parseDiagram } from '@/model';
+import { projectsChangedEvent, projectsKey, readProjects } from '@/project-store';
+import { BlockIcon } from './block-identity';
+import { useContext, useEffect, useState, type ReactNode } from 'react';
 import { ProjectContext } from '@/project/context';
 import { jsRecipes } from '@/js-recipes';
 import { Button } from './ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { IconButton } from './editor-ui';
-import { Trash2, Plus, Bookmark } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
+function Section({title,children}:{title:string;children:ReactNode}) {
+  return <Collapsible defaultOpen className="library-category"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="category-toggle"><ChevronDown/><span>{title}</span></Button></CollapsibleTrigger><CollapsibleContent>{children}</CollapsibleContent></Collapsible>;
+}
 export function MyBlocks({ addExample }: { addExample: (recipe: string) => void }) {
-  const { loadExample, myBlocks, insertSavedBlock, removeSavedBlock } = useContext(ProjectContext);
-  return <div className="my-blocks"><div className="library-intro"><h3>Saved blocks</h3><p>Save a JavaScript block from the inspector to reuse its code, rendering, ports and libraries.</p></div>
-    {!myBlocks.length && <div className="library-empty"><Bookmark size={18}/><p>Your reusable blocks will appear here.</p></div>}
-    {myBlocks.map(block => <div className="saved-block" key={block.id}><Button variant="ghost" className="saved-block-insert" onClick={() => insertSavedBlock(block)}><span className="saved-block-symbol">{block.data.ports.some(p => p.type === 'input') && <i className="palette-input"/>}JS{block.data.ports.some(p => p.type === 'output') && <i className="palette-output"/>}</span><span><strong>{block.name}</strong><small>{block.data.ports.filter(p => p.type === 'input').length} inputs · {block.data.ports.filter(p => p.type === 'output').length} outputs</small></span><Plus/></Button><IconButton label={`Delete saved block ${block.name}`} onClick={() => removeSavedBlock(block.id)}><Trash2/></IconButton></div>)}
-    <div className="library-list-heading">Block examples</div><div className="palette-grid">{['Three.js', 'LaTeX'].map(name => <Button key={name} variant="ghost" className="palette-tile" draggable onDragStart={event => { event.dataTransfer.setData('application/milver', 'javascript'); event.dataTransfer.setData('application/milver-recipe', name); event.dataTransfer.effectAllowed = 'copy'; }} onClick={() => addExample(name)}><span className="palette-glyph"><i className="palette-input"/>{jsRecipes[name].symbol}<i className="palette-output"/></span><span>{name} example</span></Button>)}</div><div className="library-list-heading">Project examples</div><Button variant="outline" size="sm" className="forward-example-button" onClick={() => loadExample('attention')}>Attention · step by step</Button><p className="field-help">Q Kᵀ → scale → softmax → V → W₀.</p><Button variant="outline" size="sm" className="forward-example-button" onClick={() => loadExample('transformer')}>Transformer forward pass</Button><p className="field-help">Learned Q/K/V projections, attention, W₀, residuals, normalization and a two-layer feed-forward neural net.</p>
+  const { loadExample, openProject, myBlocks, insertSavedBlock, removeSavedBlock } = useContext(ProjectContext);
+  const readStored = () => { try { return { projects: readProjects(localStorage), error: '' }; } catch { return { projects: [], error: 'Stored projects could not be read. Open Projects to manage them.' }; } };
+  const [stored,setStored] = useState(readStored);
+  useEffect(()=>{const refresh=()=>setStored(readStored());const storage=(event: StorageEvent)=>{if(!event.key||event.key===projectsKey)refresh();};window.addEventListener(projectsChangedEvent,refresh);window.addEventListener('storage',storage);return()=>{window.removeEventListener(projectsChangedEvent,refresh);window.removeEventListener('storage',storage);};},[]);
+  return <div className="my-blocks">
+    <Section title="Block Examples"><div className="palette-grid">{['Three.js', 'LaTeX', 'Counter', 'Trigger', 'WordTokenizer', 'SubwordTokenizer', 'Embedding'].map(name => <Button key={name} variant="ghost" className="palette-tile" draggable onDragStart={event => { event.dataTransfer.setData('application/milver', 'javascript'); event.dataTransfer.setData('application/milver-recipe', name); event.dataTransfer.effectAllowed = 'copy'; }} onClick={() => addExample(name)}><span className="palette-glyph">{jsRecipes[name].inputs > 0 && <i className="palette-input"/>}<BlockIcon data={{ kind: 'javascript', recipe: name }}/>{jsRecipes[name].outputs > 0 && <i className="palette-output"/>}</span><span>{jsRecipes[name].label.replace(/ example$/, '')}</span></Button>)}</div></Section>
+    <Section title="Saved Blocks">{!myBlocks.length && <p className="category-empty">No saved blocks yet.</p>}<div className="palette-grid">{myBlocks.map(block=><div className="saved-palette-item" key={block.id}><Button variant="ghost" className="palette-tile" draggable title={`${block.name} · ${block.data.ports.filter(port=>port.type==='input').length} inputs · ${block.data.ports.filter(port=>port.type==='output').length} outputs`} onClick={()=>insertSavedBlock(block)} onDragStart={event=>{event.dataTransfer.setData('application/milver-saved-block',block.id);event.dataTransfer.effectAllowed='copy';}}><span className="palette-glyph">{block.data.ports.some(port=>port.type==='input')&&<i className="palette-input"/>}<BlockIcon data={block.data}/>{block.data.ports.some(port=>port.type==='output')&&<i className="palette-output"/>}</span><span>{block.name}</span></Button><IconButton className="saved-palette-delete" label={`Delete saved block ${block.name}`} size="icon-xs" onClick={()=>removeSavedBlock(block.id)}><Trash2/></IconButton></div>)}</div></Section>
+    <Section title="My Projects"><div className="project-palette-list">{stored.error&&<p role="alert" className="field-help">{stored.error}</p>}{stored.projects.map(record=><ProjectPaletteCard key={record.id} project={parseDiagram(record.json)} savedAt={record.updatedAt} open={()=>openProject(parseDiagram(record.json))}/>)}{exampleProjects.map(example=><ProjectPaletteCard key={example.id} project={example.project} description={example.description} example open={()=>loadExample(example.id)}/>)}</div></Section>
   </div>;
 }

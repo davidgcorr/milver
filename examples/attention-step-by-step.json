@@ -1,6 +1,10 @@
 {
   "version": 1,
   "name": "Attention · step by step",
+  "metadata": {
+    "author": "milver",
+    "updatedAt": "2026-11-12"
+  },
   "modules": [
     {
       "id": "builtin-math",
@@ -16,16 +20,120 @@
   },
   "nodes": [
     {
-      "id": "query",
+      "id": "text",
       "type": "block",
       "position": {
         "x": 0,
-        "y": 0
+        "y": 300
       },
       "width": 240,
       "height": 180,
       "data": {
-        "label": "Q · queries · 2 × 2",
+        "label": "Text · the cat",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "the cat",
+        "ports": [
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  // value: multiline text, preserved exactly, including whitespace.\n  if (value.length > 10000) throw new Error('Text sources support up to 10,000 characters.');\n  state.text = value;\n  emit(value);\n  await render();\n}",
+        "recipe": "Text",
+        "render": "async function render() {\n  // state.text: source text. Change typography or replace this preview with JSX.\n  return <pre style={{margin:0,padding:14,font:'14px system-ui',whiteSpace:'pre-wrap',overflowWrap:'anywhere',maxHeight:'100%',overflow:'auto'}}>{state.text}</pre>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "tokenizer",
+      "type": "block",
+      "position": {
+        "x": 340,
+        "y": 300
+      },
+      "width": 240,
+      "height": 180,
+      "data": {
+        "label": "Word dictionary → token IDs",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"text\":\"the cat\",\"vocabulary\":[\"<unk>\",\"the\",\"cat\"],\"lowercase\":true}",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  // An educational tokenizer with an editable vocabulary, not a pretrained model.\n  const config = JSON.parse(value);\n  if (!Array.isArray(config.vocabulary) || config.vocabulary[0] !== '<unk>' || !config.vocabulary.every(token => typeof token === 'string' && token.length > 0) || new Set(config.vocabulary).size !== config.vocabulary.length) throw new Error('Vocabulary must contain unique strings, starting with <unk>.');\n  const raw = inputs.input1 ?? config.text ?? '';\n  if (typeof raw !== 'string') throw new Error('Connect a text input.');\n  const text = config.lowercase === false ? raw : raw.toLowerCase();\n  state.vocabulary = config.vocabulary;\n  // Split words and punctuation, then look up IDs in the dictionary.\n  state.tokens = text.match(/[\\p{L}\\p{N}]+|[^\\s\\p{L}\\p{N}]/gu) ?? [];\n  state.ids = state.tokens.map(token => Math.max(0, config.vocabulary.indexOf(token)));\n  emit(state.ids);\n  await render();\n}",
+        "recipe": "WordTokenizer",
+        "render": "async function render() {\n  // state.tokens: text pieces; state.ids: integer vocabulary IDs.\n  // state.vocabulary: index = token ID. Tune colors, spacing or font size here.\n  return <div style={{padding:14, width:'100%', boxSizing:'border-box', fontFamily:'system-ui'}}>\n    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>{(state.tokens ?? []).slice(0,40).map((token,i) =>\n      <div key={i} style={{border:'1px solid #a3a3a3',borderRadius:6,padding:'6px 9px',textAlign:'center'}}>\n        <div style={{fontSize:14}}>{token}</div><small style={{color:'#737373'}}>ID {state.ids[i]}</small>\n      </div>)}</div>\n    <div style={{fontSize:10,color:'#737373',marginTop:10}}>Vocabulary: {(state.vocabulary ?? []).map((token,id) => id + ': ' + token).join(' · ')}</div>\n  </div>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "tokens",
+      "type": "block",
+      "position": {
+        "x": 680,
+        "y": 300
+      },
+      "width": 240,
+      "height": 180,
+      "data": {
+        "label": "Embedding lookup · IDs → X",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"ids\":[1,2],\"table\":[[0,0],[1,0],[0,1]]}",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  // Each token ID selects one row from the editable embedding table.\n  const config = JSON.parse(value);\n  const ids = inputs.input1 ?? config.ids;\n  const table = config.table;\n  if (!Array.isArray(table) || !table.length || !table.every(row => Array.isArray(row) && row.length > 0 && row.length === table[0].length && row.every(Number.isFinite))) throw new Error('Enter a rectangular, finite embedding table.');\n  if (!Array.isArray(ids) || !ids.every(id => Number.isInteger(id) && id >= 0 && id < table.length)) throw new Error('Token IDs must index rows in the embedding table.');\n  state.result = ids.map(id => [...table[id]]);\n  emit(state.result);\n  await render();\n}",
+        "recipe": "Embedding",
+        "render": "async function render() {\n  // state.result: numeric scalar, vector, matrix, nested tensor or { shape, data }.\n  // Tune precision here; limit rows/columns to keep large tensors readable.\n  const precision = 4;\n  const fontSize = 24; // Font size in pixels; increase for a larger formula.\n  const format = x => x === Infinity ? '∞' : x === -Infinity ? '-∞' : Number(x.toPrecision(precision)).toString();\n  const matrix = rows => String.raw`\\begin{bmatrix}${rows.slice(0, 8).map(row => row.slice(0, 8).map(format).join(' & ')).join(String.raw` \\\\ `)}\\end{bmatrix}`;\n  let result = state.result;\n  let prefix = '';\n  if (result?.$ref && Array.isArray(result.rows)) result = result.rows;\n  if (result && Array.isArray(result.shape)) {\n    // Show the first 2D slice; change this slice offset for another tensor page.\n    const shape = result.shape, cols = shape.at(-1), rows = shape.at(-2) ?? 1;\n    prefix = String.raw`\\mathcal{T}_{${shape.join(String.raw` \\times `)}} = `;\n    result = Array.from({ length: Math.min(rows, 8) }, (_, i) => result.data.slice(i * cols, (i + 1) * cols));\n  }\n  while (Array.isArray(result?.[0]?.[0])) result = result[0];\n  const tex = typeof result === 'number' ? format(result)\n    : Array.isArray(result) ? matrix(Array.isArray(result[0]) ? result : [result]) : String.raw`\\text{Connect a numeric input}`;\n  return latex(element, prefix + tex, { fontSize });\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "w-query",
+      "type": "block",
+      "position": {
+        "x": 680,
+        "y": 900
+      },
+      "width": 240,
+      "height": 180,
+      "data": {
+        "label": "Wq · 2 × 2",
         "kind": "javascript",
         "description": "A programmable, input-driven mask",
         "color": "#171717",
@@ -46,16 +154,60 @@
       }
     },
     {
-      "id": "key",
+      "id": "query",
       "type": "block",
       "position": {
-        "x": 0,
-        "y": 300
+        "x": 1020,
+        "y": 0
       },
       "width": 240,
       "height": 180,
       "data": {
-        "label": "K · keys · 2 × 2",
+        "label": "Query · X Wq",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"a\":[[1,2],[3,4]],\"b\":[[1],[2]]}",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "in-1",
+            "name": "in 2",
+            "type": "input",
+            "side": "left",
+            "variable": "input2"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
+        "recipe": "MatMul",
+        "render": "async function render() {\n  // state.result: numeric scalar, vector, matrix, nested tensor or { shape, data }.\n  // Tune precision here; limit rows/columns to keep large tensors readable.\n  const precision = 4;\n  const fontSize = 24; // Font size in pixels; increase for a larger formula.\n  const format = x => x === Infinity ? '∞' : x === -Infinity ? '-∞' : Number(x.toPrecision(precision)).toString();\n  const matrix = rows => String.raw`\\begin{bmatrix}${rows.slice(0, 8).map(row => row.slice(0, 8).map(format).join(' & ')).join(String.raw` \\\\ `)}\\end{bmatrix}`;\n  let result = state.result;\n  let prefix = '';\n  if (result?.$ref && Array.isArray(result.rows)) result = result.rows;\n  if (result && Array.isArray(result.shape)) {\n    // Show the first 2D slice; change this slice offset for another tensor page.\n    const shape = result.shape, cols = shape.at(-1), rows = shape.at(-2) ?? 1;\n    prefix = String.raw`\\mathcal{T}_{${shape.join(String.raw` \\times `)}} = `;\n    result = Array.from({ length: Math.min(rows, 8) }, (_, i) => result.data.slice(i * cols, (i + 1) * cols));\n  }\n  while (Array.isArray(result?.[0]?.[0])) result = result[0];\n  const tex = typeof result === 'number' ? format(result)\n    : Array.isArray(result) ? matrix(Array.isArray(result[0]) ? result : [result]) : String.raw`\\text{Connect a numeric input}`;\n  return latex(element, prefix + tex, { fontSize });\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "w-key",
+      "type": "block",
+      "position": {
+        "x": 680,
+        "y": 1200
+      },
+      "width": 240,
+      "height": 180,
+      "data": {
+        "label": "Wk · 2 × 2",
         "kind": "javascript",
         "description": "A programmable, input-driven mask",
         "color": "#171717",
@@ -76,16 +228,60 @@
       }
     },
     {
-      "id": "value",
+      "id": "key",
       "type": "block",
       "position": {
-        "x": 0,
-        "y": 600
+        "x": 1020,
+        "y": 300
       },
       "width": 240,
       "height": 180,
       "data": {
-        "label": "V · values · 2 × 2",
+        "label": "Key · X Wk",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"a\":[[1,2],[3,4]],\"b\":[[1],[2]]}",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "in-1",
+            "name": "in 2",
+            "type": "input",
+            "side": "left",
+            "variable": "input2"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
+        "recipe": "MatMul",
+        "render": "async function render() {\n  // state.result: numeric scalar, vector, matrix, nested tensor or { shape, data }.\n  // Tune precision here; limit rows/columns to keep large tensors readable.\n  const precision = 4;\n  const fontSize = 24; // Font size in pixels; increase for a larger formula.\n  const format = x => x === Infinity ? '∞' : x === -Infinity ? '-∞' : Number(x.toPrecision(precision)).toString();\n  const matrix = rows => String.raw`\\begin{bmatrix}${rows.slice(0, 8).map(row => row.slice(0, 8).map(format).join(' & ')).join(String.raw` \\\\ `)}\\end{bmatrix}`;\n  let result = state.result;\n  let prefix = '';\n  if (result?.$ref && Array.isArray(result.rows)) result = result.rows;\n  if (result && Array.isArray(result.shape)) {\n    // Show the first 2D slice; change this slice offset for another tensor page.\n    const shape = result.shape, cols = shape.at(-1), rows = shape.at(-2) ?? 1;\n    prefix = String.raw`\\mathcal{T}_{${shape.join(String.raw` \\times `)}} = `;\n    result = Array.from({ length: Math.min(rows, 8) }, (_, i) => result.data.slice(i * cols, (i + 1) * cols));\n  }\n  while (Array.isArray(result?.[0]?.[0])) result = result[0];\n  const tex = typeof result === 'number' ? format(result)\n    : Array.isArray(result) ? matrix(Array.isArray(result[0]) ? result : [result]) : String.raw`\\text{Connect a numeric input}`;\n  return latex(element, prefix + tex, { fontSize });\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "w-value",
+      "type": "block",
+      "position": {
+        "x": 680,
+        "y": 1500
+      },
+      "width": 240,
+      "height": 180,
+      "data": {
+        "label": "Wv · 2 × 2",
         "kind": "javascript",
         "description": "A programmable, input-driven mask",
         "color": "#171717",
@@ -106,10 +302,54 @@
       }
     },
     {
+      "id": "value",
+      "type": "block",
+      "position": {
+        "x": 1020,
+        "y": 600
+      },
+      "width": 240,
+      "height": 180,
+      "data": {
+        "label": "Value · X Wv",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"a\":[[1,2],[3,4]],\"b\":[[1],[2]]}",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "in-1",
+            "name": "in 2",
+            "type": "input",
+            "side": "left",
+            "variable": "input2"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
+        "recipe": "MatMul",
+        "render": "async function render() {\n  // state.result: numeric scalar, vector, matrix, nested tensor or { shape, data }.\n  // Tune precision here; limit rows/columns to keep large tensors readable.\n  const precision = 4;\n  const fontSize = 24; // Font size in pixels; increase for a larger formula.\n  const format = x => x === Infinity ? '∞' : x === -Infinity ? '-∞' : Number(x.toPrecision(precision)).toString();\n  const matrix = rows => String.raw`\\begin{bmatrix}${rows.slice(0, 8).map(row => row.slice(0, 8).map(format).join(' & ')).join(String.raw` \\\\ `)}\\end{bmatrix}`;\n  let result = state.result;\n  let prefix = '';\n  if (result?.$ref && Array.isArray(result.rows)) result = result.rows;\n  if (result && Array.isArray(result.shape)) {\n    // Show the first 2D slice; change this slice offset for another tensor page.\n    const shape = result.shape, cols = shape.at(-1), rows = shape.at(-2) ?? 1;\n    prefix = String.raw`\\mathcal{T}_{${shape.join(String.raw` \\times `)}} = `;\n    result = Array.from({ length: Math.min(rows, 8) }, (_, i) => result.data.slice(i * cols, (i + 1) * cols));\n  }\n  while (Array.isArray(result?.[0]?.[0])) result = result[0];\n  const tex = typeof result === 'number' ? format(result)\n    : Array.isArray(result) ? matrix(Array.isArray(result[0]) ? result : [result]) : String.raw`\\text{Connect a numeric input}`;\n  return latex(element, prefix + tex, { fontSize });\n}",
+        "state": {}
+      }
+    },
+    {
       "id": "key-transpose",
       "type": "block",
       "position": {
-        "x": 340,
+        "x": 1360,
         "y": 300
       },
       "width": 240,
@@ -146,7 +386,7 @@
       "id": "scores",
       "type": "block",
       "position": {
-        "x": 680,
+        "x": 1700,
         "y": 0
       },
       "width": 240,
@@ -190,7 +430,7 @@
       "id": "scaled-scores",
       "type": "block",
       "position": {
-        "x": 1020,
+        "x": 2040,
         "y": 0
       },
       "width": 240,
@@ -227,7 +467,7 @@
       "id": "probabilities",
       "type": "block",
       "position": {
-        "x": 1360,
+        "x": 2380,
         "y": 0
       },
       "width": 240,
@@ -264,7 +504,7 @@
       "id": "attention",
       "type": "block",
       "position": {
-        "x": 1700,
+        "x": 2720,
         "y": 300
       },
       "width": 240,
@@ -308,7 +548,7 @@
       "id": "w0",
       "type": "block",
       "position": {
-        "x": 1700,
+        "x": 2720,
         "y": 600
       },
       "width": 240,
@@ -338,7 +578,7 @@
       "id": "projection",
       "type": "block",
       "position": {
-        "x": 2040,
+        "x": 3060,
         "y": 300
       },
       "width": 240,
@@ -382,7 +622,7 @@
       "id": "output",
       "type": "block",
       "position": {
-        "x": 2380,
+        "x": 3400,
         "y": 300
       },
       "width": 240,
@@ -413,6 +653,70 @@
     }
   ],
   "edges": [
+    {
+      "id": "text-tokenizer-0",
+      "source": "text",
+      "target": "tokenizer",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "tokenizer-tokens-0",
+      "source": "tokenizer",
+      "target": "tokens",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "tokens-query-0",
+      "source": "tokens",
+      "target": "query",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "w-query-query-1",
+      "source": "w-query",
+      "target": "query",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "tokens-key-0",
+      "source": "tokens",
+      "target": "key",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "w-key-key-1",
+      "source": "w-key",
+      "target": "key",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "tokens-value-0",
+      "source": "tokens",
+      "target": "value",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "w-value-value-1",
+      "source": "w-value",
+      "target": "value",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-1",
+      "type": "smoothstep"
+    },
     {
       "id": "key-key-transpose-0",
       "source": "key",

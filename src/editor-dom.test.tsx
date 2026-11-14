@@ -12,10 +12,14 @@ it('highlights JavaScript and sends actual editor changes to the controlled valu
   await act(async()=>root.render(createElement(CodeMirrorField,{value:'const answer = 42;',onChange,label:'Test JavaScript',language:'javascript'})));
   const content=element.querySelector('.cm-content');
   expect(content?.getAttribute('aria-label')).toBe('Test JavaScript');
-  expect(content?.querySelectorAll('span').length).toBeGreaterThan(0);
+  expect(content?.querySelector('.cm-syntax-keyword')?.textContent).toBe('const');
+  expect(content?.querySelector('.cm-syntax-number')?.textContent).toBe('42');
   const editor=EditorView.findFromDOM(element.querySelector('.cm-editor') as HTMLElement)!;
   editor.dispatch({changes:{from:0,to:editor.state.doc.length,insert:'emit(42);'}});
   expect(onChange).toHaveBeenCalledWith('emit(42);');
+  await act(async()=>root.render(createElement(CodeMirrorField,{value:'emit(99);',onChange,label:'Test JavaScript',language:'javascript'})));
+  expect(element.querySelector('.cm-syntax-number')?.textContent).toBe('99');
+  expect(onChange).toHaveBeenCalledTimes(1);
   await act(async()=>root.unmount());element.remove();
 });
 it('resizes the inspector with the keyboard and persists its width',async()=>{

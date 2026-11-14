@@ -55,8 +55,8 @@ describe('JavaScript recipe execution', () => {
     const { current: tensor } = await mountRecipe('Tensor');
     await expect(tensor.update({}, '{"shape":[2,3],"data":[1]}')).rejects.toThrow('match');
   });
-  it('emits clock ticks, changes its period and disposes the timer', async () => {
-    vi.useFakeTimers(); const { current, outputs } = await mountRecipe('Clock');
+  it.each(['Clock','Counter'])('emits %s ticks, changes its period and disposes the timer', async recipe => {
+    vi.useFakeTimers(); const { current, outputs } = await mountRecipe(recipe);
     vi.advanceTimersByTime(3000); expect(outputs).toEqual([0, 1, 2, 3]);
     await current.update({}, '2000'); vi.advanceTimersByTime(2000); expect(outputs.at(-1)).toBe(4);
     await current.destroy(); vi.advanceTimersByTime(10000); expect(outputs.at(-1)).toBe(4);

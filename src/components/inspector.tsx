@@ -1,3 +1,6 @@
+import { SourceProperties } from './source-properties';
+import { BlockIcon } from './block-identity';
+import { blockPresentation } from '@/block-presentation';
 import { stringifySignal, parseSignal } from '@/signal-json';
 import { CodeEditor } from './code-editor';
 import { isControlled } from '@/block-code';
@@ -40,12 +43,12 @@ export function Inspector({ maskError, node, edge, nodes, activePort, setActiveP
   return <Card className="floating-panel inspector-panel" aria-label="Inspector">
     <div className="panel-scroll">
       {node ? <>
-        <div className="selection-heading"><span className="selection-icon">{parent ? <Network/> : boundary ? <ArrowUpRight/> : <Scan/>}</span><div><strong>{node.data.label || 'Untitled block'}</strong><span>{parent ? 'Nested canvas' : boundary ? 'Parent interface' : `${node.data.kind} block`}</span></div><Badge variant="outline">{parent ? 'Parent' : boundary ? 'Port' : 'Block'}</Badge></div>
+        <div className="selection-heading"><span className="selection-icon"><BlockIcon data={node.data}/></span><div><strong>{node.data.label || 'Untitled block'}</strong><span>{blockPresentation(node.data).trail.join(' > ')}</span></div><Badge variant="outline">{parent ? 'Parent' : boundary ? 'Port' : 'Block'}</Badge></div>
         <div className="inspector-tabs" role="tablist" aria-label="Block properties">{(codeBlock ? ['properties', 'render', 'code', 'json'] as const : ['properties', 'render', 'json'] as const).map(t => <Button variant="ghost" size="sm" key={t} role="tab" id={`tab-${t}`} aria-controls={`panel-${t}`} aria-selected={tab === t} onClick={() => { setTab(t); setOpenedTabs(current => ({ id: node?.id, tabs: [...new Set([...(current.id === node?.id ? current.tabs : []), t])] })); }}>{t === 'properties' ? 'Properties' : t === 'code' ? 'Code' : t === 'json' ? 'JSON' : 'Render'}</Button>)}</div>
         <div role="tabpanel" id="panel-properties" aria-labelledby="tab-properties" hidden={tab !== 'properties'}>
         <section className="property-section">
           <Field label={boundary ? 'Port name' : 'Block name'}><Input disabled={isControlled(node.data, 'label')} aria-label={boundary ? 'Interface port name' : 'Block name'} value={node.data.label} onChange={e => update({ label: e.target.value })}/></Field>
-          {!parent && !boundary && <Field label={(node.data.kind === 'gain' || node.data.recipe === 'Gain') ? 'Gain factor' : node.data.kind === 'constant' ? 'Constant value' : node.data.kind === 'javascript' ? 'Fallback value' : 'Parameter'}><Input disabled={isControlled(node.data, 'value')} aria-label="Display value" value={node.data.value} onChange={e => update({ value: e.target.value })}/></Field>}
+          {['Text','CSV'].includes(node.data.recipe ?? '') ? <SourceProperties key={node.id} data={node.data} update={update}/> : !parent && !boundary && <Field label={(node.data.kind === 'gain' || node.data.recipe === 'Gain') ? 'Gain factor' : node.data.kind === 'constant' ? 'Constant value' : node.data.kind === 'javascript' ? 'Fallback value' : 'Parameter'}><Input disabled={isControlled(node.data, 'value')} aria-label="Display value" value={node.data.value} onChange={e => update({ value: e.target.value })}/></Field>}
           <Field label="Description"><Textarea disabled={isControlled(node.data, 'description')} aria-label="Block description" rows={2} value={node.data.description} onChange={e => update({ description: e.target.value })}/></Field>
 
           {node.data.kind === 'python' && <p className="field-help">Edit Python source in Code. Source is saved for your own runtime; Python does not execute here.</p>}

@@ -1,15 +1,16 @@
+import { blockPresentation } from '../block-presentation';
 import { roughPaths } from '../rough';
 import { portOffset } from '../ports';
 import { connectionPath } from '../connections';
 import { Position } from '@xyflow/react';
-import { blockTypePath, canvasAt, defaultTheme, type BlockNode, type Canvas, type Diagram, type Port, type Side, type ThemeSettings, type FlowSettings } from '../model';
+import { canvasAt, defaultTheme, type BlockNode, type Canvas, type Diagram, type Port, type Side, type ThemeSettings, type FlowSettings } from '../model';
 import { themeVariables } from '../theme';
 
 export type ExportFormat = 'html' | 'svg' | 'png' | 'gif' | 'json';
 export type ExportOptions = { scope: 'current' | 'system'; width: number; transparent: boolean; grid: boolean; title: boolean; animate: boolean };
 export const defaultExportOptions: ExportOptions = { scope: 'current', width: 1600, transparent: false, grid: false, title: true, animate: true };
 export type ExportPage = { title: string; path: string[]; canvas: Canvas; index: number; parent: number | null };
-export type ExportWire = { d: string; x: number; y: number };
+export type ExportWire = { d: string; x: number; y: number; animationSize?: number; glow?: boolean; color?: string; reverse?: boolean };
 export type ExportScene = { width: number; height: number; body: string; wires: ExportWire[]; palette: ExportPalette; title: string; rough?: boolean; roughness?: number };
 export type ExportPalette = { background: string; card: string; foreground: string; muted: string; primary: string; border: string; grid: string; secondary: string };
 const sides: Record<Side, Position> = { left: Position.Left, right: Position.Right, top: Position.Top, bottom: Position.Bottom };
@@ -69,7 +70,7 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
   radius = v.radius ?? radius;
   const w = node.width ?? 164, h = node.height ?? 116;
   const parent = data.kind === 'subsystem', boundary = data.kind === 'inport' || data.kind === 'outport';
-  const typePath = [blockTypePath(data.kind)[0], data.recipe?.toLowerCase() ?? data.operation?.type ?? blockTypePath(data.kind)[1]].join(' › ');
+  const typePath = blockPresentation(data).trail.join(' › ');
   const clip = `block-${index}`; const textClip = `label-${index}`;
   const text = (x: number, y: number, value: string, size: number, attrs = '') => `<text x="${x}" y="${y}" font-size="${size}" ${attrs}>${escapeXml(value)}</text>`;
   let symbol: string;
@@ -78,7 +79,7 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
   } else if (data.kind === 'scope') symbol = `<path d="M-27 6h8l8-15 10 17 10-12 8 7h10" transform="translate(${w / 2} ${h / 2})" fill="none" stroke="${palette.primary}" stroke-width="1.5" stroke-linejoin="round"/>`;
   else symbol = text(w / 2, h / 2 + 8, boundary ? data.kind === 'inport' ? '↳' : '↗' : data.kind === 'gain' ? `× ${data.value}` : data.value || 'ƒ', 29, `text-anchor="middle" fill="${palette.primary}" font-family="Georgia,serif" clip-path="url(#${clip})"`);
   if (data.kind === 'module' || data.operation) symbol = text(w / 2, h / 2 + 8, data.kind === 'module' ? 'Import module' : `${data.operation?.type === 'construct' ? 'new ' : ''}${data.operation?.member ?? data.operation?.exportName ?? 'run()'}`, 16, `text-anchor="middle" fill="${palette.primary}" clip-path="url(#${clip})"`);
-  if (data.kind === 'renderer') symbol = text(w / 2, h / 2 + 8, 'Value renderer', 18, `text-anchor="middle" fill="${palette.primary}"`);
+  if (data.kind === 'renderer') symbol = text(w / 2, h / 2 + 8, 'Math viewer', 18, `text-anchor="middle" fill="${palette.primary}"`);
   if (data.kind === 'python') symbol = text(w / 2, h / 2 + 8, 'Python code', 18, `text-anchor="middle" fill="${palette.primary}"`);
   if (data.kind === 'javascript') symbol = text(w / 2, h / 2 + 8, data.recipe ?? 'JS module', 18, `text-anchor="middle" fill="${palette.primary}"`);
   if (boundary) symbol = text(w / 2, h / 2 + 5, data.kind === 'inport' ? '→' : '←', 14, `text-anchor="middle" fill="${palette.primary}"`);
@@ -112,7 +113,7 @@ export function buildScene(diagram: Diagram, pages: ExportPage[], options: Expor
       const a = handlePoint(source, out), b = handlePoint(target, input);
       const settings = { route: edge.type === 'default' ? 'bezier' : 'smoothstep', ...edge.data } as FlowSettings;
       const d = connectionPath({ sourceX: a.x, sourceY: a.y, sourcePosition: sides[out.side], targetX: b.x, targetY: b.y, targetPosition: sides[input.side] }, settings);
-      wires.push({ d, x, y });
+      wires.push({ d, x, y, ...(settings.animationSize !== undefined ? { animationSize: settings.animationSize } : {}), ...(settings.animation === 'glow' ? { glow: true } : {}), ...(settings.color ? { color: settings.color } : {}), ...(settings.reverse ? { reverse: true } : {}) });
       const sketch = theme.rough ? roughPaths(d,edge.id,settings.color ?? palette.muted,settings.width ?? 1.5,theme.roughness ?? 1).map(p=>`<path d="${p.d}" fill="none" stroke="${p.stroke}" stroke-width="${p.strokeWidth}"/>`).join('') : '';
       return sketch + `<path d="${d}" fill="none" stroke="${theme.rough ? 'none' : settings.color ?? palette.muted}" stroke-width="${settings.width ?? 1.5}" marker-end="url(#arrow)"/>`;
     }).join('');

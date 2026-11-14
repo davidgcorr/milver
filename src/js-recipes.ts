@@ -1,3 +1,5 @@
+import { dataSourceRecipes } from './data-source-recipes';
+import { tokenizerRecipes } from './tokenizer-recipes';
 import { operatorRecipes, sinkRecipes, numericRender } from './operator-recipes';
 import { defaultLogic, completeFunction } from './block-code';
 import { makeNode, type BlockNode } from './model';
@@ -38,7 +40,7 @@ const button = `export default function mount({ element, value, emit, setValue }
 }`;
 const clock = `export default function mount({ element, value, emit }) {
   let timer,period,count=0;
-  function update(inputs,value){const next=Number(value);if(!Number.isFinite(next)||next<16||next>3600000)throw new Error('Clock period must be 16–3600000 ms.');if(next===period)return;clearInterval(timer);period=next;timer=setInterval(()=>{count++;element.textContent=String(count);emit(count);},period);element.textContent=String(count);emit(count);}
+  function update(inputs,value){const next=Number(value);if(!Number.isFinite(next)||next<16||next>3600000)throw new Error('Counter period must be 16–3600000 ms.');if(next===period)return;clearInterval(timer);period=next;timer=setInterval(()=>{count++;element.textContent=String(count);emit(count);},period);element.textContent=String(count);emit(count);}
   update({},value);return {update,destroy(){clearInterval(timer);}};
 }`;
 const trigger = `export default function mount({ element, inputs, emit }) {
@@ -59,7 +61,7 @@ export const wasmSource = `export default async function mount({ element, inputs
 export const exampleWasm = 'AGFzbQEAAAABBwFgAn9/AX8DAgEABwcBA2FkZAAACgkBBwAgACABags=';
 export type JsRecipe = { label: string; symbol: string; category: string; source: string; render?: string; value: string; inputs: number; outputs: number };
 export const jsRecipes: Record<string, JsRecipe> = {
-  ...operatorRecipes, ...sinkRecipes,
+  ...operatorRecipes, ...sinkRecipes, ...tokenizerRecipes, ...dataSourceRecipes,
   ...Object.fromEntries(Object.entries(moduleRecipes).map(([label, source]) => [label, { label: label === 'DOM' ? 'Module' : `${label} example`, symbol: label === 'DOM' ? 'JS' : label === 'LaTeX' ? 'ƒ' : '3D', category: 'JavaScript code blocks', source, value: '1', inputs: 1, outputs: 1 }])),
   Number: { label: 'Number', symbol: '123', category: 'JavaScript datatypes', source: datatype('number'), value: '1', inputs: 0, outputs: 1 },
   Boolean: { label: 'Boolean', symbol: 'T/F', category: 'JavaScript datatypes', source: datatype('boolean'), value: 'true', inputs: 0, outputs: 1 },
@@ -67,8 +69,9 @@ export const jsRecipes: Record<string, JsRecipe> = {
   Vector: { label: 'Vector', symbol: '[x]', category: 'JavaScript datatypes', source: datatype('vector'), value: '[1,2,3]', inputs: 0, outputs: 1 },
   Matrix: { label: 'Matrix', symbol: '▦', category: 'JavaScript datatypes', source: datatype('matrix'), value: '[[1,2],[3,4]]', inputs: 0, outputs: 1 },
   Tensor: { label: 'Tensor', symbol: '▧', category: 'JavaScript datatypes', source: datatype('tensor'), value: '[[[1,2],[3,4]],[[5,6],[7,8]]]', inputs: 0, outputs: 1 },
-  Clock: { label: 'Clock', symbol: '◷', category: 'JavaScript sources', source: clock, value: '1000', inputs: 0, outputs: 1 },
-  Trigger: { label: 'Trigger', symbol: '↑', category: 'JavaScript sources', source: trigger, value: '', inputs: 1, outputs: 1 },
+  Counter: { label: 'Counter', symbol: '◷', category: 'Examples', source: clock, value: '1000', inputs: 0, outputs: 1 },
+  Clock: { label: 'Counter', symbol: '◷', category: 'Examples', source: clock, value: '1000', inputs: 0, outputs: 1 },
+  Trigger: { label: 'Trigger', symbol: '↑', category: 'Examples', source: trigger, value: '', inputs: 1, outputs: 1 },
   Slider: { label: 'Slider', symbol: '☷', category: 'JavaScript sources', source: slider, value: '{"min":0,"max":100,"step":1,"initial":50}', inputs: 0, outputs: 1 },
   Selector: { label: 'Selector', symbol: '▾', category: 'JavaScript sources', source: selector, value: '{"options":["A","B","C"],"selected":0}', inputs: 0, outputs: 1 },
   Button: { label: 'Button', symbol: '↖', category: 'JavaScript sources', source: button, value: '{"label":"Click","count":0}', inputs: 0, outputs: 1 },
@@ -82,7 +85,7 @@ export function applyJsRecipe(node: BlockNode, name: string): BlockNode {
     ...Array.from({ length: recipe.outputs }, (_, i) => ({ id: `out-${i}`, name: 'out', type: 'output' as const, side: 'right' as const, variable: `output${i + 1}` })),
   ];
   const { render: _render, state: _state, ...data } = node.data;
-  const result: BlockNode = { ...node, data: { ...data, kind: 'javascript', recipe: name, label: recipe.label, module: recipe.source, ...('render' in recipe ? { render: recipe.render as string, state: {} } : {}), value: recipe.value, ports, ...(name in splitRecipes ? { module: splitRecipes[name].logic, render: '// Shared context: state is saved JSON, inputs are named ports, value is Parameter.\n' + splitRecipes[name].render, state: {} } : {}), ...(name === 'DOM' ? { module: defaultLogic, render: "// state.result: value computed in Code. Tune the content and typography below.\nelement.textContent = String(state.result ?? '');", state: {} } : {}), ...(name === 'WebAssembly' ? { wasm: { filename: 'add.wasm', base64: exampleWasm, exportName: 'add' } } : {}) } };
+  const result: BlockNode = { ...node, data: { ...data, kind: 'javascript', recipe: name, label: recipe.label, module: recipe.source, ...('render' in recipe ? { render: recipe.render as string, state: {} } : {}), value: recipe.value, ports, ...((name === 'Counter' || name in splitRecipes) ? { module: splitRecipes[name === 'Counter' ? 'Clock' : name].logic, render: '// Shared context: state is saved JSON, inputs are named ports, value is Parameter.\n' + splitRecipes[name === 'Counter' ? 'Clock' : name].render, state: {} } : {}), ...(name === 'DOM' ? { module: defaultLogic, render: "// state.result: value computed in Code. Tune the content and typography below.\nelement.textContent = String(state.result ?? '');", state: {} } : {}), ...(name === 'WebAssembly' ? { wasm: { filename: 'add.wasm', base64: exampleWasm, exportName: 'add' } } : {}) } };
   if (result.data.render !== undefined) { result.data.module = completeFunction(result.data.module ?? '', 'run'); result.data.render = completeFunction(result.data.render, 'render'); }
   return result;
 }
@@ -164,7 +167,7 @@ element.textContent = '↑ ' + state.count;`,
   },
   Clock: {
     logic: `const period = Number(value);
-if (!Number.isFinite(period) || period < 16 || period > 3600000) throw new Error('Clock period must be 16–3600000 ms.');
+if (!Number.isFinite(period) || period < 16 || period > 3600000) throw new Error('Counter period must be 16–3600000 ms.');
 state.count ??= 0;
 emit(state.count);
 await render();
