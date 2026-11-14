@@ -59,7 +59,7 @@ it('groups examples and saved blocks into collapsible sections without the old i
   expect(sources.textContent).toContain('General viewer');expect(sources.textContent).toContain('Math viewer');
   const sections=[...panel.querySelectorAll<HTMLButtonElement>('.category-toggle')];
   expect(sections.map(button=>button.textContent)).toEqual(['Block Examples','Saved Blocks','My Projects']);
-  expect(panel.querySelectorAll('.project-palette-card')).toHaveLength(4);
+  expect(panel.querySelectorAll('.project-palette-card')).toHaveLength(5);
   await act(async()=>sections[2].click());
   expect(sections[2].getAttribute('aria-expanded')).toBe('false');
 }));

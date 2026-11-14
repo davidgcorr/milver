@@ -1,7 +1,8 @@
+import { interactiveRecipes, demoLibrary } from './interactive-recipes';
 import { dataSourceRecipes } from './data-source-recipes';
 import { tokenizerRecipes } from './tokenizer-recipes';
 import { operatorRecipes, sinkRecipes, numericRender } from './operator-recipes';
-import { defaultLogic, completeFunction } from './block-code';
+import { defaultLogic, defaultRender, completeFunction } from './block-code';
 import { makeNode, type BlockNode } from './model';
 import { moduleRecipes } from './module-recipes';
 
@@ -59,9 +60,9 @@ export const wasmSource = `export default async function mount({ element, inputs
 }`;
 // A working two-i32 add module; imported binaries replace this in JSON.
 export const exampleWasm = 'AGFzbQEAAAABBwFgAn9/AX8DAgEABwcBA2FkZAAACgkBBwAgACABags=';
-export type JsRecipe = { label: string; symbol: string; category: string; source: string; render?: string; value: string; inputs: number; outputs: number };
+export type JsRecipe = { description?: string; label: string; symbol: string; category: string; source: string; render?: string; value: string; inputs: number; outputs: number };
 export const jsRecipes: Record<string, JsRecipe> = {
-  ...operatorRecipes, ...sinkRecipes, ...tokenizerRecipes, ...dataSourceRecipes,
+  ...operatorRecipes, ...sinkRecipes, ...tokenizerRecipes, ...dataSourceRecipes, ...interactiveRecipes,
   ...Object.fromEntries(Object.entries(moduleRecipes).map(([label, source]) => [label, { label: label === 'DOM' ? 'Module' : `${label} example`, symbol: label === 'DOM' ? 'JS' : label === 'LaTeX' ? 'ƒ' : '3D', category: 'JavaScript code blocks', source, value: '1', inputs: 1, outputs: 1 }])),
   Number: { label: 'Number', symbol: '123', category: 'JavaScript datatypes', source: datatype('number'), value: '1', inputs: 0, outputs: 1 },
   Boolean: { label: 'Boolean', symbol: 'T/F', category: 'JavaScript datatypes', source: datatype('boolean'), value: 'true', inputs: 0, outputs: 1 },
@@ -85,15 +86,16 @@ export function applyJsRecipe(node: BlockNode, name: string): BlockNode {
     ...Array.from({ length: recipe.outputs }, (_, i) => ({ id: `out-${i}`, name: 'out', type: 'output' as const, side: 'right' as const, variable: `output${i + 1}` })),
   ];
   const { render: _render, state: _state, ...data } = node.data;
-  const result: BlockNode = { ...node, data: { ...data, kind: 'javascript', recipe: name, label: recipe.label, module: recipe.source, ...('render' in recipe ? { render: recipe.render as string, state: {} } : {}), value: recipe.value, ports, ...((name === 'Counter' || name in splitRecipes) ? { module: splitRecipes[name === 'Counter' ? 'Clock' : name].logic, render: '// Shared context: state is saved JSON, inputs are named ports, value is Parameter.\n' + splitRecipes[name === 'Counter' ? 'Clock' : name].render, state: {} } : {}), ...(name === 'DOM' ? { module: defaultLogic, render: "// state.result: value computed in Code. Tune the content and typography below.\nelement.textContent = String(state.result ?? '');", state: {} } : {}), ...(name === 'WebAssembly' ? { wasm: { filename: 'add.wasm', base64: exampleWasm, exportName: 'add' } } : {}) } };
+  const result: BlockNode = { ...node, data: { ...data, kind: 'javascript', recipe: name, label: recipe.label, description: recipe.description ?? data.description, module: recipe.source, ...('render' in recipe ? { render: recipe.render as string, state: {} } : {}), value: recipe.value, ports, ...((name === 'Counter' || name in splitRecipes) ? { module: splitRecipes[name === 'Counter' ? 'Clock' : name].logic, render: '// React scope: inputs, state, block, modules; run() controls outputs.\n' + splitRecipes[name === 'Counter' ? 'Clock' : name].render, state: {} } : {}), ...(name === 'DOM' ? { module: defaultLogic, render: defaultRender, state: {} } : {}), ...(name === 'WebAssembly' ? { wasm: { filename: 'add.wasm', base64: exampleWasm, exportName: 'add' } } : {}) } };
   if (result.data.render !== undefined) { result.data.module = completeFunction(result.data.module ?? '', 'run'); result.data.render = completeFunction(result.data.render, 'render'); }
   return result;
 }
 export function makeJsNode(name: string, position: { x: number; y: number }, id?: string) { return applyJsRecipe(makeNode('javascript', position, id), name); }
 
 export const exampleLibraries = {
+  LibraryBadge: demoLibrary,
   'Three.js': { alias: 'THREE', url: 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js' },
-} satisfies Record<string, { alias: string; url: string }>;
+} satisfies Record<string, { alias: string; url?: string; source?: string }>;
 const splitRecipes: Record<string, { logic: string; render: string }> = {
   ...Object.fromEntries(['number', 'boolean', 'string', 'vector', 'matrix', 'tensor'].map(type => {
     const legacy = datatype(type);
@@ -109,8 +111,7 @@ emit(result);
 await render();`
         : validation.trim() + '\nstate.result = result;\nemit(result);\nawait render();',
       render: ['number', 'vector', 'matrix', 'tensor'].includes(type) ? numericRender : `// state.result: the validated ${type} source value.
-element.textContent = String(state.result);
-element.style.font = '18px system-ui';`,
+return <span style={{fontSize:18}}>{String(state.result)}</span>;`,
     }];
   })),
   Slider: {
@@ -163,7 +164,7 @@ state.previous = active;
 emit(state.count);
 await render();`,
     render: `// state.count: rising edges counted in Code; state.previous: prior input truthiness.
-element.textContent = '↑ ' + state.count;`,
+return <strong style={{fontSize:24}}>↑ {state.count}</strong>;`,
   },
   Clock: {
     logic: `const period = Number(value);
@@ -178,45 +179,39 @@ const timer = setInterval(() => {
 }, period);
 onCleanup(() => clearInterval(timer));`,
     render: `// state.count: saved tick count. Number(value) sets the period in milliseconds.
-element.textContent = String(state.count);`,
+return <strong style={{fontSize:24,fontVariantNumeric:'tabular-nums'}}>{state.count}</strong>;`,
   },
   'Three.js': {
     logic: `state.speed = Number(inputs.input1 ?? value) || 0;
 emit(state.speed);
 await render();`,
-    render: `// state.speed: numeric input or fallback value, used as radians per second.
-// The cleanup below disposes the GPU resources whenever this view is replaced.
-const THREE = modules.THREE;
-if (!THREE) throw new Error('Add THREE in the Libraries tab.');
-element.replaceChildren();
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-camera.position.z = 4;
-const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-element.append(renderer.domElement);
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshNormalMaterial();
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
-const observer = new ResizeObserver(() => {
-  const w = element.clientWidth, h = element.clientHeight;
-  renderer.setSize(w, h);
-  camera.aspect = w / (h || 1);
-  camera.updateProjectionMatrix();
-});
-observer.observe(element);
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  cube.rotation.y += clock.getDelta() * state.speed;
-  cube.rotation.x = 0.4;
-  renderer.render(scene, camera);
-});
-return () => {
-  observer.disconnect();
-  renderer.setAnimationLoop(null);
-  geometry.dispose(); material.dispose(); renderer.dispose();
-};`,
+    render: `// state.speed: input-controlled rotation speed. Tune camera, material or geometry.
+const host = useRef(null);
+useEffect(() => {
+  const THREE = modules.THREE;
+  if (!THREE) throw new Error('Import THREE in Libraries.');
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 4;
+  const view = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  const geometry = new THREE.BoxGeometry();
+  const material = new THREE.MeshNormalMaterial();
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+  host.current.append(view.domElement);
+  const resize = new ResizeObserver(() => {
+    const { clientWidth: w, clientHeight: h } = host.current;
+    view.setSize(w, h); camera.aspect = w / (h || 1); camera.updateProjectionMatrix();
+  });
+  resize.observe(host.current);
+  const clock = new THREE.Clock();
+  view.setAnimationLoop(() => {
+    cube.rotation.y += clock.getDelta() * state.speed;
+    cube.rotation.x = 0.4; view.render(scene, camera);
+  });
+  return () => { resize.disconnect(); view.setAnimationLoop(null); geometry.dispose(); material.dispose(); view.dispose(); view.domElement.remove(); };
+}, [modules.THREE]);
+return <div ref={host} style={{width:'100%',height:'100%'}}/>;`,
   },
   LaTeX: {
     logic: `state.result = Number(inputs.input1 ?? value) ** 2;
@@ -224,7 +219,7 @@ emit(state.result);
 await render();`,
     render: `// state.result: input squared in Code. latex() uses bundled KaTeX / MathML.
 // Change the expression here; computations and emitted outputs stay in Code.
-return latex(element, 'f(x) = x^2 = ' + state.result);`,
+return <Latex tex={'f(x) = x^2 = ' + state.result} fontSize={24}/>;`,
   },
   WebAssembly: {
     logic: `if (!wasm) throw new Error('Import a .wasm binary in Code.');
@@ -237,7 +232,6 @@ if (typeof state.result === 'bigint') state.result = Number(state.result);
 emit(state.result);
 await render();`,
     render: `// state.result: finite numeric Wasm output, or null while inputs are missing.
-element.textContent = state.result === null ? 'Connect numeric inputs' : String(state.result);
-element.style.font = '24px system-ui';`,
+return <span style={{fontSize:24}}>{state.result === null ? 'Connect numeric inputs' : String(state.result)}</span>;`,
   },
 };

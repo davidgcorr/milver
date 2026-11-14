@@ -8,7 +8,9 @@ export function useProjectRuntime(document: Diagram, external: Record<string, Ex
   const [live, setLive] = useState(true), [result, setResult] = useState<ExecutionResult | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [generation, setGeneration] = useState(0), [steps, setSteps] = useState(0);
   let plan: ProjectPlan = { modules: [], nodes: [] }, compileError = '';
   try { plan = compileProject(document); } catch (e) { compileError = e instanceof Error ? e.message : String(e); }
-  const enabled = !!document.modules?.length || plan.nodes.some(n => !!n.data.operation);
+  // Visible JavaScript blocks own their logic and library instances. Start the
+  // shared worker only for nested routing or explicit shared computations.
+  const enabled = plan.nodes.some(n => n.data.kind === 'subsystem' || !!n.data.operation);
   const definition = definitionKey(plan), execution = executionKey(plan), externals = stringifySignal(external);
   const frame = useRef<HTMLIFrameElement | null>(null), ready = useRef(false), requestId = useRef(0), pending = useRef<'live' | 'step' | null>(null), inFlight = useRef(false), latest = useRef({ plan, external, live });
   latest.current = { plan, external, live };

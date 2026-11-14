@@ -8,6 +8,8 @@ import { serializeDiagram } from './model';
 import { EditorView } from '@codemirror/view';
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT=true;
 it('matches palette icons and category trails, and highlights code after switching inspector tabs',async()=>{
+  Range.prototype.getClientRects=()=>[] as any;
+  Range.prototype.getBoundingClientRect=()=>({x:0,y:0,left:0,right:0,top:0,bottom:0,width:0,height:0,toJSON(){}});
   vi.stubGlobal('DOMMatrixReadOnly',class{m22=1;});
   vi.stubGlobal('ResizeObserver',class{observe(){}unobserve(){}disconnect(){}});
   const node=makeJsNode('String',{x:0,y:0},'source');
@@ -26,7 +28,7 @@ it('matches palette icons and category trails, and highlights code after switchi
     const editor=EditorView.findFromDOM(code.closest('.cm-editor') as HTMLElement)!;
     await act(async()=>editor.dispatch({changes:{from:editor.state.doc.length,insert:'\n// Draft kept across tabs'}}));
     await act(async()=>host.querySelector<HTMLButtonElement>('#tab-render')!.click());
-    expect(host.querySelector('#panel-render .cm-syntax-string')).not.toBeNull();
+    expect(host.querySelector('#panel-render .cm-syntax-number')).not.toBeNull();
     await act(async()=>host.querySelector<HTMLButtonElement>('#tab-json')!.click());
     expect(host.querySelector('#panel-json .cm-syntax-property')).not.toBeNull();
     await act(async()=>host.querySelector<HTMLButtonElement>('#tab-code')!.click());

@@ -84,7 +84,7 @@ const id = row.indexOf(Math.max(...row));
 return inputs.vocabulary[id];`);g.wire(softmax,decode);g.wire(vocab,decode,1);
     return [{node:decode,name:'Next character'},{node:softmax,name:'Probabilities'}];
   });root.wire(transformer,head);root.wire(csv,head,1);root.wire(tokenizer,head,2,1);
-  const predicted=root.add(makeNode('renderer',{x:1700,y:100},'prediction'));predicted.data.label='Next character (quoted) · toy weights';predicted.data.render="async function render() {\n  // Quote whitespace characters so spaces and newlines remain visible.\n  element.textContent = state.result == null ? 'Waiting for prompt' : JSON.stringify(state.result);\n  element.style.font = '24px ui-monospace, monospace';\n}";root.wire(head,predicted);
+  const predicted=root.add(makeNode('renderer',{x:1700,y:100},'prediction'));predicted.data.label='Next character (quoted) · toy weights';predicted.data.render="function render({ state }) {\n  // Quote spaces and newlines so the next character remains visible.\n  return <code style={{fontSize:24}}>{state.result == null ? 'Waiting for prompt' : JSON.stringify(state.result)}</code>;\n}";root.wire(head,predicted);
   const probabilities=root.add(makeNode('renderer',{x:1700,y:400},'probabilities'));probabilities.data.label='Vocabulary probabilities';root.wire(head,probabilities,0,1);
   const diagram={version:1,metadata:{author:'milver',updatedAt:'2026-11-12'},name:'NanoGPT-style · characters to next-token probabilities',modules:[mathLibrary],...root.canvas()};
   const json=serializeDiagram(diagram);parseDiagram(json);

@@ -1,22 +1,9 @@
-export const numericRender = `// state.result: numeric scalar, vector, matrix, nested tensor or { shape, data }.
-// Tune precision here; limit rows/columns to keep large tensors readable.
-const precision = 4;
-const fontSize = 24; // Font size in pixels; increase for a larger formula.
-const format = x => x === Infinity ? '∞' : x === -Infinity ? '-∞' : Number(x.toPrecision(precision)).toString();
-const matrix = rows => String.raw\`\\begin{bmatrix}\${rows.slice(0, 8).map(row => row.slice(0, 8).map(format).join(' & ')).join(String.raw\` \\\\ \`)}\\end{bmatrix}\`;
-let result = state.result;
-let prefix = '';
-if (result?.$ref && Array.isArray(result.rows)) result = result.rows;
-if (result && Array.isArray(result.shape)) {
-  // Show the first 2D slice; change this slice offset for another tensor page.
-  const shape = result.shape, cols = shape.at(-1), rows = shape.at(-2) ?? 1;
-  prefix = String.raw\`\\mathcal{T}_{\${shape.join(String.raw\` \\times \`)}} = \`;
-  result = Array.from({ length: Math.min(rows, 8) }, (_, i) => result.data.slice(i * cols, (i + 1) * cols));
-}
-while (Array.isArray(result?.[0]?.[0])) result = result[0];
-const tex = typeof result === 'number' ? format(result)
-  : Array.isArray(result) ? matrix(Array.isArray(result[0]) ? result : [result]) : String.raw\`\\text{Connect a numeric input}\`;
-return latex(element, prefix + tex, { fontSize });`;
+export const numericRender = `function render({ state }) {
+  // state.result: scalar, vector, matrix or tensor, computed by run().
+  const fontSize = 24;
+  const precision = 4;
+  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;
+}`;
 
 const definitions = [
   ['MatMul', 'Matrix multiply', 'AB', 'matmul', 2, { a: [[1,2],[3,4]], b: [[1],[2]] }],

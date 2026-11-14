@@ -170,61 +170,74 @@ This is a diagram editor, not a numerical simulation engine. Constants, gains, s
 
 Open **Libraries** in the left panel to add an ES module URL, upload `.js`/`.mjs` files, or create an embedded module. Expand an imported library to edit its alias, URL or source; use its trash button to remove it. These edits support undo/redo. Importing a library never creates a block or any connections.
 
-Libraries are exposed to every mounted JavaScript block, including its render function, as `modules.alias`. For example, a library saved as `helper` with `export const double = x => x * 2` is available as `modules.helper.double(x)`. Embedded libraries can import each other by project alias. The block’s code can also use dynamic imports for project aliases. Remote libraries must be browser-compatible ESM with CORS support. Uploaded source is embedded in JSON; remote URLs require network access.
+Libraries are exposed to every mounted JavaScript block, including its render function, as `modules.alias`. For example, a library saved as `helper` with `export const double = x => x * 2` is available as `modules.helper.double(x)`. Embedded libraries can import each other by project alias. The block’s code can also use dynamic imports for project aliases. Remote libraries must be browser-compatible ESM with CORS support. Embedded React libraries can import `react`, `react-dom`, `react-dom/client` and `react/jsx-runtime`; those specifiers resolve to the bundled UI instance so hooks remain compatible. Remote React component libraries should externalize those React imports. Uploaded source is embedded in JSON; remote URLs require network access.
 
 ## JavaScript logic and rendering
 
-**JavaScript → Module** creates a block with two complete editable functions. The lifecycle adapter is supplied by the editor.
-
-**Code** controls inputs, state and outputs:
-
-```js
-async function run() {
-  state.result = modules.tensorMath.multiply(inputs.input1 ?? Number(value), 2);
-  emit(state.result, 'output1');
-  await render();
-}
-```
-
-**Render** controls the block content:
-
-```js
-async function render() {
-  element.textContent = String(state.result);
-  element.style.font = '24px system-ui';
-}
-```
-
-Both functions can access `inputs`, `variables`, `state`, `value`, `modules`, and `setProperty`. `inputs` contains port IDs and named aliases; expand **Port variables** in Code to change the mappings. `emit(value, outputIdOrVariable)` defaults to the first output. `emitEvent(value, port)` publishes a distinct event even when its payload is unchanged. Outputs and state accept bounded JSON values, including numeric arrays and shaped tensors; functions, cycles, NaN and oversized values are rejected. Positive and negative infinity are supported.
-
-The Code and Render editors use CodeMirror with JavaScript/JSX highlighting, indentation, search, code folding, and editor undo/redo. Expand an editor for more space; open **Block help & snippets** for the current block’s variables and insertable examples.
-
-`state` is shared between logic and rendering and persisted as `data.state`, including nested edits. Code and render source are stored as `data.module` and `data.render`. Runtime inputs, outputs and errors appear in Code. Block JSON updates the UI after validation; UI changes update the same JSON. The project JSON editor also exposes library definitions, geometry, nested canvases and connections.
-
-Use `setProperty('label', 'Result')`, `setProperty('width', 280)` or `setProperty('visuals.background', '#ffffff')` to change the block itself. Supported fields are label, description, value, width, height and every appearance setting. The editor validates changes and records ownership in `data.controlledProperties`. Matching UI controls and resize handles lock automatically. Remove the code assignment and release the field in Render to resume UI editing. Ownership survives JSON export/import.
-
-Render also supports JSX using bundled React and the same shadcn/Radix components as the editor. No external package import is needed:
+**JavaScript → Module** provides two complete, editable functions. Code computes and emits data; Render is a synchronous React function component returning JSX. The editor supplies their lifecycle and shared scope.
 
 ```jsx
-// state.config contains { label, count }; clicks save a new parameter and rerun Code.
-return <Button variant="outline" onClick={() =>
-  setValue(JSON.stringify({ ...state.config, count: (state.config.count ?? 0) + 1 }))
-}>
-  {state.config.label} · {state.config.count ?? 0}
-</Button>;
+async function run({ inputs, state, emit }) {
+  state.result = Number(inputs.input1 ?? 0) * 2;
+  emit(state.result);
+}
+
+function render({ inputs, state, block, modules }) {
+  const color = inputs.input2 ?? '#0ea5e9';
+  return <div style={{ padding: 16, color }}>
+    <small>{block.label}</small>
+    <strong style={{ display: 'block', fontSize: 32 }}>{state.result}</strong>
+  </div>;
+}
 ```
 
-`Slider`, `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem` and `React` are also in scope. The default Slider, Selector and Button sources use these components. Numeric sources call `latex(element, tex)` using bundled KaTeX and accessible MathML, so numbers, vectors, matrices and tensor slices work offline. Stock render functions document their state fields, precision, slice selection and styling points.
+Code runs before the component renders. Input, parameter and block-property updates rerun Code and refresh Render. Saved state mutations also repaint the component without rerunning Code or restarting its timers. Calling `await render()` explicitly remains supported. Render must return JSX synchronously; use effects for asynchronous visual work.
 
-Return a cleanup function from Render to dispose graphics, observers or event listeners before the next render or unmount. Use `onCleanup(fn)` in Code for logic resources such as timers. Render can retain DOM elements between calls; use `element.replaceChildren()` when a complete redraw is appropriate.
+The same scope is available as function arguments or directly inside both functions:
 
-**Sources** includes Number, Boolean, String, Vector, Matrix, Tensor, Clock, Trigger, Slider, Selector and Button. Their logic and render bodies use the same API. `setValue(string)` saves a source parameter; source controls use it for slider positions, selector choices and button counts. Clock periods are milliseconds (minimum 16 ms). Trigger counts rising input edges.
+| Name | Purpose |
+| --- | --- |
+| `inputs`, `variables` | Port IDs and configured input aliases |
+| `state`, `setState(patchOrUpdater)` | Shared saved JSON state; direct nested mutations also repaint |
+| `block` | Live id, label, description, kind, parameter value, dimensions, position, ports, visual settings and other block metadata; `block.state` refers to saved state |
+| `modules.alias` | All imported project/block libraries; bundled React and controls are also available as `modules.React` and `modules.shadcn` |
+| `value`, `renderer`, `ports`, `wasm` | Parameter string, viewer settings, port definitions and Wasm configuration |
+| `actions` | Event behavior defined in Code and called from JSX; functions are kept outside saved JSON |
+| `emit(value, port)`, `emitEvent(value, port)` | Publish outputs or distinct events; defaults to the first output |
+| `setValue(string)`, `setProperty(path, value)` | Save the parameter or control a block property |
+| `onCleanup(fn)` | Dispose resources owned by Code before its next run or unmount |
+
+`React`, `useState`, `useEffect`, `useLayoutEffect`, `useRef`, `useMemo` and `useCallback` are in scope. `useState` keeps transient component UI state across input updates. Use saved `state` or `setState()` for values that must travel in JSON. React effects run normally and clean up on dependency changes/unmount. Components keep their identity while inputs or block properties change. Visual errors stay inside the block and a later valid input can recover the component.
+
+The bundled components are `Button`, `Slider`, `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `<MathValue value={state.result} fontSize={24}/>` and `<Latex tex="x^2" fontSize={24}/>`. Math components retain the fitted KaTeX/MathML presentation and clean up their observers. Numeric render functions expose font size and precision as simple constants. Three.js uses a ref and an effect whose cleanup releases its graphics resources.
+
+For behavior controlled by inputs, keep output logic in Code and connect it to JSX through actions:
+
+```jsx
+async function run({ inputs, state, actions, emit }) {
+  state.enabled = Boolean(inputs.input1 ?? true);
+  state.count ??= 0;
+  actions.increment = () => { state.count++; emit(state.count); };
+}
+
+function render({ state, actions }) {
+  return <Button disabled={!state.enabled} onClick={actions.increment}>
+    Increment · {state.count}
+  </Button>;
+}
+```
+
+Use `setProperty('label', 'Result')`, `setProperty('width', 280)` or `setProperty('visuals.background', '#ffffff')` in Code, or in a React effect, to control the block itself. Supported inspector fields are validated and recorded in `data.controlledProperties`; corresponding controls and resize handles lock automatically. Remove the code assignment and release ownership in Render to resume UI editing.
+
+CodeMirror highlights JavaScript/JSX and JSON. **Use React template** stages the current block’s JSX template without overwriting its saved renderer until Apply. **Block help & snippets** offers complete component examples in Render and insertable code snippets in Code. `data.module`, `data.render`, `data.state`, libraries, geometry, controls and wiring all travel in project JSON. State and output values must be bounded JSON data; infinity is supported, while functions, cycles and NaN are rejected.
+
+**Sources** includes Number, Boolean, String, Text, CSV, Vector, Matrix, Tensor, Slider, Selector and Button. Counter and Trigger are in Block Examples. Their logic and render bodies use the same API. `setValue(string)` saves a source parameter; source controls use it for slider positions, selector choices and button counts. Counter periods are milliseconds (minimum 16 ms). Trigger counts rising input edges.
 
 **My Blocks → Block examples** contains Three.js and LaTeX examples with graphics in Render. Three.js registers its required package in Libraries; LaTeX uses the bundled renderer. The Three.js example needs WebGL. **WebAssembly** starts with a working two-input integer add binary. Import another `.wasm` file in Code and choose the exported function. The binary, wrapper logic and rendering all round-trip through JSON.
 
-JavaScript blocks run in opaque-origin iframes with `sandbox="allow-scripts"`. They cannot access the editor DOM or its local storage. Library namespaces are shared within a block’s logic and rendering, while each iframe has its own library instances. Custom JavaScript runs while its canvas is mounted; hiding mask content leaves the runtime mounted. Publication exports show static labels; JSON preserves executable code and configuration.
+JavaScript blocks run in opaque-origin iframes with `sandbox="allow-scripts"`. They cannot access the editor DOM or its local storage. Library namespaces are shared within a block’s logic and rendering, while each iframe has its own library instances. Pure visible JavaScript graphs run in their block frames; the shared project worker is used for nested routing and explicit shared computations. Custom JavaScript runs while its canvas is mounted; hiding mask content leaves the runtime mounted. Publication exports show static labels; JSON preserves executable code and configuration.
 
-**Math / value viewer** is the single numeric/value sink. It now uses the same editable `run()` and `render()` functions as other math blocks. Tune the LaTeX, font size, precision, slice selection, colors or JSX layout in Render; the source and saved state travel in JSON. Older viewer nodes receive the default functions when loaded. It accepts scalars, vectors, nested matrices/tensors, older shaped tensors, and runtime preview metadata. It uses LaTeX for numeric data and text for other values. Choose precision, formula font size and tensor slice in Properties. Scope and Python are no longer offered in the palette; older saved projects remain readable.
+**Math viewer** handles numeric presentation, and **General viewer** shows formatted JSON and JavaScript values. It now uses the same editable `run()` and `render()` functions as other math blocks. Tune the LaTeX, font size, precision, slice selection, colors or JSX layout in Render; the source and saved state travel in JSON. Older viewer nodes receive the default functions when loaded. It accepts scalars, vectors, nested matrices/tensors, older shaped tensors, and runtime preview metadata. It uses LaTeX for numeric data and text for other values. Choose precision, formula font size and tensor slice in Properties. Scope and Python are no longer offered in the palette; older saved projects remain readable.
 
 ## Reusable blocks, operators and sinks
 
@@ -246,7 +259,7 @@ TensorFlow.js was chosen for editable model construction and tensor operations (
 
 ## Existing project compatibility
 
-Saved version-1 diagrams continue to load. Existing JavaScript blocks without `data.render` retain their `export default function mount(...)` lifecycle and embedded dependencies. Their Code tab identifies this API. New blocks save complete `async function run() { ... }` and `async function render() { ... }` declarations. Earlier body-only source is adapted when shown in the editor and remains executable.
+Saved version-1 diagrams continue to load. Existing JavaScript blocks without `data.render` retain their `export default function mount(...)` lifecycle and embedded dependencies. Their Code tab identifies this API. New blocks save `async function run(...) { ... }` and synchronous React `function render(...) { return <.../>; }` declarations. Saved asynchronous/imperative renderers keep their earlier lifecycle; they are not silently overwritten. Earlier body-only source is adapted when shown in the editor and remains executable.
 
 Older Import module, function, constructor, method, property and JS computation nodes remain supported when loaded from JSON; they are no longer generated from library imports. [`examples/shared-modules.json`](examples/shared-modules.json) demonstrates this earlier shared worker API, including live class instances, nested interface routing, and Run/Step execution. Its computation code exports `run({ inputs, modules, state, parameters, tick })`. That worker state and live instances are transient; the new JavaScript block state is saved explicitly in `data.state`.
 
@@ -273,3 +286,5 @@ With **Snap to grid and connected ports** enabled, dragging a block or selection
 **Block Examples** now includes **Counter** (formerly Clock) and **Trigger**. Old Clock recipes remain loadable. **Sinks → General viewer** shows formatted JSON and a value type, with editable rendering; **Math viewer** keeps its existing mathematical rendering.
 
 **My Blocks** uses the same section spacing and block tiles as the Blocks tab. Saved tiles can be clicked or dragged onto the canvas; their delete button appears on hover or focus. **My Projects** contains local saved projects and included examples, each identified by a JSON file icon, project type, author, date and block count. Author and document dates are optional `metadata.author`, `metadata.createdAt` and `metadata.updatedAt` fields in project JSON. Missing authors are shown as “Author not set”; saved-project cards use the local snapshot date. Local cards refresh when projects are saved, renamed, imported or deleted in the project manager.
+
+**My Blocks → Block Examples** includes Metric card (input-controlled number and color), Progress ring (value and maximum), Input-gated button (enabled state and payload), Input-driven block (code-controlled title, background and width), Input-driven pulse (enable/period), Toggle, and Library-powered badge (shared imported formatting/color functions). Open **My Blocks → My Projects → Interactive blocks · React + inputs** for a wired playground ([JSON](examples/interactive-blocks.json)); double-click source controls and buttons to interact. Change the slider, color selector, enable toggle and period to see visuals, outputs and locked properties update. `node scripts/create-interactive-example.mjs` regenerates the project.

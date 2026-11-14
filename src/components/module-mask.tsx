@@ -22,10 +22,11 @@ const send = data => parent.postMessage(JSON.parse(JSON.stringify({...data, toke
 const report = error => { const previous=current;current=undefined;try{const cleanup=typeof previous==='function'?previous():previous?.destroy?.();Promise.resolve(cleanup).catch(()=>{});}catch{} element.replaceChildren(); const p=document.createElement('pre');p.textContent=error?.message || String(error);element.append(p);send({type:'mask-error',error:error?.message || String(error)}); };
 addEventListener('error', e=>report(e.error || e.message));
 addEventListener('unhandledrejection', e=>report(e.reason));
-let stateQueued=false;
+let stateQueued=false;const stateListeners=new Set();
+const subscribeState=listener=>{stateListeners.add(listener);return()=>stateListeners.delete(listener);};
 const stateTarget=JSON.parse(JSON.stringify(config.state??{}), wireReviver), proxies=new WeakMap();
-const persistState=()=>{if(stateQueued)return;stateQueued=true;queueMicrotask(()=>{stateQueued=false;if(validSignal(stateTarget))send({type:'mask-state',state:stateTarget});else report(new Error('State must be bounded JSON data.'));});};
-function observe(value){if(!value||typeof value!=='object')return value;if(proxies.has(value))return proxies.get(value);const proxy=new Proxy(value,{get:(target,key)=>observe(target[key]),set(target,key,value){if(['__proto__','constructor','prototype'].includes(String(key)))throw new Error('Invalid state key');target[key]=value;persistState();return true;},deleteProperty(target,key){delete target[key];persistState();return true;}});proxies.set(value,proxy);return proxy;}
+const persistState=()=>{for(const listener of stateListeners)listener();if(stateQueued)return;stateQueued=true;queueMicrotask(()=>{stateQueued=false;if(validSignal(stateTarget))send({type:'mask-state',state:stateTarget});else report(new Error('State must be bounded JSON data.'));});};
+function observe(value){if(!value||typeof value!=='object')return value;if(proxies.has(value))return proxies.get(value);const proxy=new Proxy(value,{get:(target,key)=>observe(target[key]),set(target,key,value){if(['__proto__','constructor','prototype'].includes(String(key)))throw new Error('Invalid state key');if(Object.is(target[key],value))return true;target[key]=value;persistState();return true;},deleteProperty(target,key){delete target[key];persistState();return true;}});proxies.set(value,proxy);return proxy;}
 const state=observe(stateTarget);
 const setProperty=(path,value)=>{if(typeof path==='string'&&validSignal(value))send({type:'mask-property',path,value});};
 const outputPorts=(config.ports??[]).filter(p=>p.type==='output');
@@ -36,7 +37,7 @@ async function flush() {
  if(running || !mount) return; running=true;
  try { while(pending) {
    const next=pending;pending=null;
-   const inputKey=JSON.stringify([next.inputs,next.value,next.color,next.background], wireReplacer);
+   const inputKey=JSON.stringify([next.inputs,next.value,next.color,next.background,next.block], wireReplacer);
    const stateChanged=next.state&&JSON.stringify(next.state,wireReplacer)!==JSON.stringify(stateTarget,wireReplacer);
    if(lastInput===inputKey&&!stateChanged&&current)continue;
    if(stateChanged){for(const key of Object.keys(stateTarget))delete stateTarget[key];Object.assign(stateTarget,next.state);}
@@ -45,10 +46,10 @@ async function flush() {
    document.body.style.color=next.color;element.style.background=next.background;
    const inputs={...next.inputs},variables={};
    for(const p of config.ports??[])if(p.type==='input'&&p.variable){inputs[p.variable]=next.inputs[p.id]??null;variables[p.variable]=next.inputs[p.id]??null;}
-   if(current && typeof current.update==='function')await current.update(inputs,next.value,variables);
+   if(current && typeof current.update==='function')await current.update(inputs,next.value,variables,next.block);
    else {
      if(typeof current==='function')await current();else if(current?.destroy)await current.destroy();
-     element.replaceChildren();current=await mount({element,inputs,variables,value:next.value,emit,emitEvent,setValue,modules,state,setProperty,ui,renderer:config.renderer,wasm:config.wasm,ports:config.ports});
+     element.replaceChildren();current=await mount({element,inputs,variables,value:next.value,emit,emitEvent,setValue,modules,state,setProperty,subscribeState,reportError:report,block:next.block,ui,renderer:config.renderer,wasm:config.wasm,ports:config.ports});
    }
  } } catch(error) { report(error); } finally { running=false; }
 }
@@ -57,11 +58,26 @@ const urls=[];
 addEventListener('pagehide',()=>{if(typeof current==='function')current();else current?.destroy?.();urls.forEach(url=>URL.revokeObjectURL(url));});
 try {
  if(config.uiSource){const uiUrl=URL.createObjectURL(new Blob([config.uiSource],{type:'text/javascript'}));urls.push(uiUrl);ui=await import(uiUrl);}
+ modules.React=ui?.React;modules.ReactDOM=ui?.ReactDOM;modules.shadcn=ui ? {Button:ui.Button,Slider:ui.Slider,Select:ui.Select,SelectTrigger:ui.SelectTrigger,SelectValue:ui.SelectValue,SelectContent:ui.SelectContent,SelectItem:ui.SelectItem} : {};
  const imports=Object.create(null);
- for(const d of config.dependencies??[]){if(d.url)imports[d.specifier]=d.url;else{const url=URL.createObjectURL(new Blob([d.source],{type:'text/javascript'}));urls.push(url);imports[d.specifier]=url;}}
+ // Embedded React libraries must use the same React instance as the block UI.
+ if(ui?.React){
+   globalThis.__milverReactUI=ui;
+   const bridge=(specifier,expression,namespace,defaultExport=false)=>{
+     const names=Object.keys(namespace??{}).filter(name=>/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name)&&name!=='default'&&name!=='__esModule');
+     const source='const namespace='+expression+';'+(defaultExport?'export default namespace;':'')+names.map(name=>'export const '+name+'=namespace['+JSON.stringify(name)+'];').join('');
+     const url=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));urls.push(url);imports[specifier]=url;
+   };
+   bridge('react','globalThis.__milverReactUI.React',ui.React,true);
+   if(ui.ReactDOM)bridge('react-dom','globalThis.__milverReactUI.ReactDOM',ui.ReactDOM,true);
+   bridge('react-dom/client','globalThis.__milverReactUI.ReactDOMClient',ui.ReactDOMClient??{});
+   if(ui.jsxRuntime)bridge('react/jsx-runtime','globalThis.__milverReactUI.jsxRuntime',ui.jsxRuntime);
+ }
+
+ for(const d of config.dependencies??[]){if(imports[d.specifier])continue;if(d.url)imports[d.specifier]=d.url;else{const url=URL.createObjectURL(new Blob([d.source],{type:'text/javascript'}));urls.push(url);imports[d.specifier]=url;}}
  const map=document.createElement('script');map.type='importmap';map.textContent=JSON.stringify({imports});document.head.append(map);
- modules=Object.fromEntries(await Promise.all(Object.keys(imports).map(async name=>[name,await import(name)])));
- for(const namespace of Object.values(modules)){if(namespace.tf){await namespace.ready;modules.tf??=namespace.tf;modules.tensorMath??=namespace;}}
+ modules={...modules,...Object.fromEntries(await Promise.all(Object.keys(imports).map(async name=>[name,await import(name)])))};
+ for(const namespace of Object.values(modules)){if(namespace?.tf){await namespace.ready;modules.tf??=namespace.tf;modules.tensorMath??=namespace;}}
  const url=URL.createObjectURL(new Blob([${encode(source)}],{type:'text/javascript'}));urls.push(url);const module=await import(url);mount=module.default;
  if(typeof mount!=='function')throw new Error('Export a default mount function.');send({type:'mask-ready'});flush();
 } catch(error){report(error);}
@@ -71,7 +87,7 @@ let renderBundle: Promise<string> | undefined;
 export const loadRenderBundle = () => renderBundle ??= import('../generated/block-ui.js?raw').then(module => module.default).catch(error => { renderBundle = undefined; throw error; });
 let mathBundle: Promise<string> | undefined;
 export const loadMathBundle = () => mathBundle ??= import('../generated/block-math.js?raw').then(m => m.default).catch(error => { mathBundle = undefined; throw error; });
-export function ModuleMask({ id, source, render, state, value, color, background, ports, dependencies, wasm, renderer, interactive = false }: { id: string; source?: string; render?: string; state?: BlockData['state']; value: string; color: string; background: string; ports: Port[]; dependencies?: ModuleDependency[]; wasm?: WasmConfig; renderer?: RendererConfig; interactive?: boolean }) {
+export function ModuleMask({ id, source, render, state, value, color, background, ports, dependencies, wasm, renderer, block: blockProperties, interactive = false }: { block?: Record<string, unknown>; id: string; source?: string; render?: string; state?: BlockData['state']; value: string; color: string; background: string; ports: Port[]; dependencies?: ModuleDependency[]; wasm?: WasmConfig; renderer?: RendererConfig; interactive?: boolean }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const { values, emit, setValue, saveState, setProperty, report } = useContext(PreviewContext);
   const project = useContext(ProjectContext);
@@ -83,12 +99,13 @@ export function ModuleMask({ id, source, render, state, value, color, background
   const stateInput = state === savedState.current ? undefined : state;
   const initialState = useRef(state); initialState.current = state;
   const inputs = stringifySignal(values[id]?.inputs ?? {});
+  const block = stringifySignal({ id, label: 'Block', width: 240, height: 190, ...blockProperties });
   const settings = JSON.stringify({ dependencies: allDependencies, ports: ports.map(({ id, type, variable }) => ({ id, type, variable })), wasm, renderer });
   const code = useMemo(() => {
     try { return render !== undefined ? buildBlockModule(source ?? '', render) : source ?? defaultModule; }
     catch (error) { return `export default function(){throw new Error(${JSON.stringify(String(error))});}`; }
   }, [source, render]);
-  const needsUI = /React\.createElement|\blatex\s*\(/.test(code);
+  const needsUI = render !== undefined || /React\.createElement|\blatex\s*\(/.test(code);
   const [uiSource, setUISource] = useState<string>();
   const needsMath = builtins.length > 0;
   useEffect(() => { let active = true; if (needsMath) void loadMathBundle().then(source => { if (active) setMathSource(source); }).catch(error => { if (active) report(id, String(error)); }); return () => { active = false; }; }, [needsMath, id, report]);
@@ -102,10 +119,10 @@ export function ModuleMask({ id, source, render, state, value, color, background
     options.dependencies = options.dependencies.map((dependency: ModuleDependency) => builtins.some(m => m.alias === dependency.specifier) ? { ...dependency, source: mathSource ?? '' } : dependency);
     return { token, source: (needsUI && !uiSource || needsMath && !mathSource) ? `<!doctype html><html><body style="font:11px system-ui;color:#737373">${uiError || 'Loading renderer…'}</body></html>` : moduleDocument(code, { ...options, state: initialState.current, ...(needsUI ? { uiSource } : {}), token }) };
   }, [code, settings, needsUI, uiSource, uiError, needsMath, mathSource]);
-  const latest = useRef({ inputs, value, color, background, state }); latest.current = { inputs, value, color, background, state: stateInput };
+  const latest = useRef({ inputs, value, color, background, state, block }); latest.current = { inputs, value, color, background, state: stateInput, block };
   const token = useRef(document.token); token.current = document.token;
   useEffect(() => {
-    const send = () => { const data = latest.current; frame.current?.contentWindow?.postMessage({ type: 'mask-input', ...data, color: frame.current ? getComputedStyle(frame.current).color : data.color, inputs: parseSignal(data.inputs) }, '*'); };
+    const send = () => { const data = latest.current; frame.current?.contentWindow?.postMessage({ type: 'mask-input', ...data, color: frame.current ? getComputedStyle(frame.current).color : data.color, inputs: parseSignal(data.inputs), block: parseSignal(data.block) }, '*'); };
     const receive = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow || e.data?.token !== token.current) return;
       if (e.data.type === 'mask-ready') send();
@@ -119,6 +136,6 @@ export function ModuleMask({ id, source, render, state, value, color, background
     };
     window.addEventListener('message', receive); return () => window.removeEventListener('message', receive);
   }, [id, emit, setValue, saveState, setProperty, report, settings]);
-  useEffect(() => { frame.current?.contentWindow?.postMessage({ type: 'mask-input', inputs: parseSignal(inputs), state: stateInput, value, color: frame.current ? getComputedStyle(frame.current).color : color, background }, '*'); }, [inputs, state, value, color, background, document]);
+  useEffect(() => { frame.current?.contentWindow?.postMessage({ type: 'mask-input', inputs: parseSignal(inputs), state: stateInput, value, block: parseSignal(block), color: frame.current ? getComputedStyle(frame.current).color : color, background }, '*'); }, [inputs, state, value, color, background, document, block]);
   return <iframe key={document.token} ref={frame} title="JavaScript block mask" className={`module-mask ${interactive ? 'mask-interactive nodrag nopan nowheel' : ''}`} tabIndex={interactive ? 0 : -1} sandbox="allow-scripts" srcDoc={document.source}/>;
 }

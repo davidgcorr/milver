@@ -5,7 +5,6 @@ import { buildBlockModule } from './block-code';
 import { jsRecipes, makeJsNode } from './js-recipes';
 import { exampleDiagram, parseDiagram, serializeDiagram } from './model';
 import { mathLibrary } from './default-libraries';
-import katex from 'katex';
 import * as React from 'react';
 
 
@@ -33,15 +32,15 @@ describe('numeric kernels for a transformer forward pass', () => {
     const normalized = math.layerNorm([[1,2,3],[3,4,5]]);
     expect(normalized[0].reduce((a:number,b:number)=>a+b,0)).toBeCloseTo(0);
   });
-  it('executes every operator default through its editable code and LaTeX render body', async () => {
+  it('executes every operator default and produces a React math component', async () => {
     for (const [name, recipe] of Object.entries(jsRecipes).filter(([,r])=>r.category==='Operators')) {
       const node = makeJsNode(name,{x:0,y:0});
       const code = buildBlockModule(node.data.module!, node.data.render!);
       const module = await import(/* @vite-ignore */ `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
-      const outputs: unknown[] = [], equations: string[] = [];
-      const mounted = await module.default({ inputs:{}, state:{}, value:recipe.value, element:{}, modules:{math,tensorMath:math}, emit:(value:unknown)=>outputs.push(value), ui:{ latex:(_element: unknown,tex: string)=>{equations.push(katex.renderToString(tex,{throwOnError:true,output:'mathml'}));} } });
+      const outputs: unknown[] = [];let rendered: any;
+      const mounted = await module.default({ inputs:{}, state:{}, value:recipe.value, element:{}, modules:{math,tensorMath:math}, emit:(value:unknown)=>outputs.push(value), ui:{ React, MathValue:'math', createRoot:()=>({render:(element:any)=>{rendered=element.type(element.props);},unmount(){}}) } });
       expect(outputs.length, name).toBe(1);
-      expect(equations[0], name).toContain('<math');
+      expect(React.isValidElement(rendered), name).toBe(true);expect(rendered.props.value).toEqual(outputs[0]);
       await mounted.destroy();
     }
   });

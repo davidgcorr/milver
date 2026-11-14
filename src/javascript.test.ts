@@ -29,7 +29,7 @@ async function mountRecipe(name: string, inputs: Record<string, Signal> = {}) {
   const module = await import(/* @vite-ignore */ `data:text/javascript;base64,${Buffer.from(node.data.render !== undefined ? buildBlockModule(node.data.module!, node.data.render) : node.data.module!, 'utf8').toString('base64')}`);
   vi.stubGlobal('document', { createElement: (tag: string) => Object.assign(new Element(), { tagName: tag }) });
   const rendered: { current?: any } = {};
-  const ui = { React: { createElement, isValidElement }, Button: 'button', Slider: 'input', Select: 'select', SelectTrigger: 'button', SelectValue: 'span', SelectContent: 'div', SelectItem: 'option', latex: (element: any, tex: string) => { element.innerHTML = katex.renderToString(tex, { output: 'mathml', throwOnError: true }); }, createRoot: () => ({ render: (node: any) => { rendered.current = node; }, unmount() {} }) };
+  const ui = { React: { createElement, isValidElement }, MathValue:'math', Latex:'math', Button: 'button', Slider: 'input', Select: 'select', SelectTrigger: 'button', SelectValue: 'span', SelectContent: 'div', SelectItem: 'option', latex: (element: any, tex: string) => { element.innerHTML = katex.renderToString(tex, { output: 'mathml', throwOnError: true }); }, createRoot: () => ({ render: (node: any) => { rendered.current = typeof node.type === 'function' ? node.type(node.props) : node; }, unmount() {} }) };
   const element = new Element(), outputs: Signal[] = [], persisted: string[] = [];
   const mapped = (input: Record<string, Signal>) => ({ ...input, ...Object.fromEntries(node.data.ports.filter(p => p.type === 'input' && p.variable).map(p => [p.variable!, input[p.id] ?? null])) });
   let mounted: any;
