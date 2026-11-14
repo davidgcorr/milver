@@ -1,0 +1,304 @@
+{
+  "version": 1,
+  "name": "Iframe inputs · live embedded pages",
+  "metadata": {
+    "author": "milver",
+    "updatedAt": "2026-11-14"
+  },
+  "modules": [],
+  "viewport": {
+    "x": 300,
+    "y": 100,
+    "zoom": 0.6
+  },
+  "nodes": [
+    {
+      "id": "number",
+      "type": "block",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "width": 300,
+      "height": 230,
+      "data": {
+        "label": "Slider",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"min\":0,\"max\":100,\"step\":1,\"initial\":42}",
+        "ports": [
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}",
+        "recipe": "Slider",
+        "render": "function render() {\n  // React scope: inputs, state, block, modules; run() controls outputs.\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "color",
+      "type": "block",
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "width": 300,
+      "height": 230,
+      "data": {
+        "label": "Selector",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"options\":[\"#0ea5e9\",\"#ec4899\",\"#10b981\"],\"selected\":0}",
+        "ports": [
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Array.isArray(config.options) || !config.options.length || config.options.some(v => !['string', 'number', 'boolean'].includes(typeof v))) throw new Error('Provide nonempty scalar options.');\n  state.selected = Math.max(0, Math.min(config.options.length - 1, config.selected ?? 0));\n  emit(config.options[state.selected]);\n  await render();\n}",
+        "recipe": "Selector",
+        "render": "function render() {\n  // React scope: inputs, state, block, modules; run() controls outputs.\n  // state.config.options: scalar choices; state.selected: selected zero-based index.\n  // Customize the shadcn SelectTrigger, SelectItem or surrounding layout.\n  return <Select value={String(state.selected)} onValueChange={selected => setValue(JSON.stringify({ ...state.config, selected: Number(selected) }))}>\n    <SelectTrigger aria-label=\"Source selector\"><SelectValue/></SelectTrigger>\n    <SelectContent position=\"popper\">{state.config.options.map((option, index) =>\n      <SelectItem key={index} value={String(index)}>{String(option)}</SelectItem>\n    )}</SelectContent>\n  </Select>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "csv",
+      "type": "block",
+      "position": {
+        "x": 0,
+        "y": 600
+      },
+      "width": 300,
+      "height": 230,
+      "data": {
+        "label": "CSV",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "{\"text\":\"2,5,3,8\",\"delimiter\":\",\",\"header\":false,\"numeric\":true}",
+        "ports": [
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  // config.text: raw CSV; header selects records versus rows.\n  // numeric converts finite numeric cells so row output connects directly to math blocks.\n  const config = JSON.parse(value);\n  const parseCsv = function parseCsv(text, options = {}) {\n  \tif (typeof text !== \"string\" || text.length > 1e5) throw new Error(\"CSV must be text with at most 100,000 characters.\");\n  \tconst delimiter = options.delimiter ?? \",\";\n  \tif (delimiter.length !== 1 || /[\"\\r\\n]/.test(delimiter)) throw new Error(\"Choose a single CSV delimiter.\");\n  \ttext = text.replace(/^\\uFEFF/, \"\");\n  \tif (!text) return [];\n  \tconst rows = [];\n  \tlet row = [], field = \"\", quoted = false, closed = false;\n  \tconst cell = () => {\n  \t\trow.push(field);\n  \t\tfield = \"\";\n  \t\tclosed = false;\n  \t};\n  \tconst line = () => {\n  \t\tcell();\n  \t\trows.push(row);\n  \t\trow = [];\n  \t};\n  \tfor (let i = 0; i < text.length; i++) {\n  \t\tconst char = text[i];\n  \t\tif (quoted) {\n  \t\t\tif (char === \"\\\"\") {\n  \t\t\t\tif (text[i + 1] === \"\\\"\") {\n  \t\t\t\t\tfield += \"\\\"\";\n  \t\t\t\t\ti++;\n  \t\t\t\t} else {\n  \t\t\t\t\tquoted = false;\n  \t\t\t\t\tclosed = true;\n  \t\t\t\t}\n  \t\t\t} else field += char;\n  \t\t} else if (char === delimiter) cell();\n  \t\telse if (char === \"\\n\" || char === \"\\r\") {\n  \t\t\tline();\n  \t\t\tif (char === \"\\r\" && text[i + 1] === \"\\n\") i++;\n  \t\t} else if (char === \"\\\"\") {\n  \t\t\tif (field || closed) throw new Error(\"Unexpected quote in CSV.\");\n  \t\t\tquoted = true;\n  \t\t} else {\n  \t\t\tif (closed) throw new Error(\"Unexpected text after a quoted CSV field.\");\n  \t\t\tfield += char;\n  \t\t}\n  \t};\n  \tif (quoted) throw new Error(\"Unclosed quoted CSV field.\");\n  \tif (field || row.length || closed || !/[\\r\\n]$/.test(text)) line();\n  \tconst width = rows[0]?.length ?? 0;\n  \tif (rows.length > 500 || width > 32 || rows.length * width > 1e4) throw new Error(\"CSV preview supports up to 500 rows, 32 columns and 10,000 cells.\");\n  \tif (rows.some((row) => row.length !== width)) throw new Error(\"CSV rows must have the same number of columns.\");\n  \tconst convert = (cell) => options.numeric !== false && cell.trim() && /^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?$/i.test(cell.trim()) && Number.isFinite(Number(cell)) ? Number(cell) : cell;\n  \tif (!options.header) return rows.map((row) => row.map(convert));\n  \tconst headers = rows.shift().map((header) => header.trim());\n  \tif (new Set(headers).size !== width || headers.some((header) => !header || header.length > 128 || [\n  \t\t\"__proto__\",\n  \t\t\"constructor\",\n  \t\t\"prototype\"\n  \t].includes(header))) throw new Error(\"CSV headers must be unique, nonempty, safe names.\");\n  \treturn rows.map((row) => Object.fromEntries(headers.map((header, i) => [header, convert(row[i])])));\n  };\n  state.result = parseCsv(config.text, config);\n  state.columns = config.header && state.result.length ? Object.keys(state.result[0]) : [];\n  emit(state.result);\n  await render();\n}",
+        "recipe": "CSV",
+        "render": "function render() {\n  // state.result: an array of rows, or records when header is enabled.\n  // Tune row count, spacing, and typography below. All values are rendered as text.\n  const rows = (state.result ?? []).slice(0,8);\n  return <div style={{padding:10,width:'100%',boxSizing:'border-box',overflow:'auto',maxHeight:'100%'}}><table style={{width:'100%',borderCollapse:'collapse',font:'12px system-ui'}}>\n  {state.columns.length > 0 && <thead><tr>{state.columns.map(column => <th key={column} style={{padding:5,textAlign:'left'}}>{column}</th>)}</tr></thead>}\n  <tbody>{rows.map((row,i) => <tr key={i}>{(Array.isArray(row) ? row : Object.values(row)).map((cell,j) => <td key={j} style={{padding:5,borderBottom:'1px solid #a3a3a333'}}>{String(cell)}</td>)}</tr>)}</tbody></table></div>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "metric",
+      "type": "block",
+      "position": {
+        "x": 420,
+        "y": 0
+      },
+      "width": 300,
+      "height": 230,
+      "data": {
+        "label": "Iframe · live metric",
+        "kind": "javascript",
+        "description": "Input 1 sets the embedded metric; input 2 sets its color. The iframe replies with the value and its double.",
+        "color": "#171717",
+        "value": "{\"mode\":\"html\",\"html\":\"<!doctype html><html><head><meta charset=\\\"utf-8\\\"><meta name=\\\"viewport\\\" content=\\\"width=device-width,initial-scale=1\\\"><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font:14px system-ui;color:#171717}body{display:grid;place-items:center;padding:16px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><section id=\\\"card\\\" style=\\\"width:100%;padding:20px;border-radius:16px;background:#e0f2fe\\\"><small>LIVE EMBEDDED METRIC</small><div id=\\\"metric\\\" style=\\\"font-size:44px;font-weight:650;margin-top:8px\\\"></div></section><script>\\naddEventListener('message', event => {\\n  if(event.source !== parent || event.data?.type !== 'milver-input') return;\\n  const { input1, input2 } = event.data.inputs;\\n  const value = Number(input1 ?? 0), color = typeof input2 === 'string' ? input2 : '#0ea5e9';\\ndocument.getElementById('metric').textContent = String(value);\\ndocument.getElementById('card').style.background = color+'22';\\ndocument.getElementById('card').style.color = color;\\nparent.postMessage({type:'milver-output',value:{received:value,doubled:value*2}},'*');\\n});\\nparent.postMessage({type:'milver-ready'},'*');\\n</script></body></html>\",\"initial\":25}",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "in-1",
+            "name": "in 2",
+            "type": "input",
+            "side": "left",
+            "variable": "input2"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  // The page receives these named values via postMessage, without reloading.\n  const config = JSON.parse(value);\n  if (config.mode === 'url' && !['http:','https:'].includes(new URL(config.url).protocol)) throw new Error('Use an HTTP or HTTPS iframe URL.');\n  state.payload = { input1: inputs.input1 ?? config.initial ?? null, input2: inputs.input2 ?? null };\n  // Replies from the embedded page become this block's output.\n  actions.receive = reply => emit(reply);\n}",
+        "recipe": "IframeMetric",
+        "render": "function render({ state, value, actions, block }) {\n  // Iframe handles load/ready and input updates. Tune the page in Properties.\n  const config = JSON.parse(value);\n  return <Iframe title={block.label} src={config.mode === 'url' ? config.url : undefined}\n    html={config.mode === 'url' ? undefined : config.html}\n    data={state.payload} block={block} onMessage={actions.receive}/>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "chart",
+      "type": "block",
+      "position": {
+        "x": 420,
+        "y": 600
+      },
+      "width": 300,
+      "height": 230,
+      "data": {
+        "label": "Iframe · bar chart",
+        "kind": "javascript",
+        "description": "Input 1 supplies numbers or CSV rows; input 2 sets the chart color. The iframe returns summary statistics.",
+        "color": "#171717",
+        "value": "{\"mode\":\"html\",\"html\":\"<!doctype html><html><head><meta charset=\\\"utf-8\\\"><meta name=\\\"viewport\\\" content=\\\"width=device-width,initial-scale=1\\\"><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font:14px system-ui;color:#171717}body{display:grid;place-items:center;padding:16px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><section style=\\\"width:100%\\\"><small>INPUT-DRIVEN CHART</small><div id=\\\"bars\\\" style=\\\"display:flex;align-items:end;gap:8px;height:120px;margin-top:12px\\\"></div></section><script>\\naddEventListener('message', event => {\\n  if(event.source !== parent || event.data?.type !== 'milver-input') return;\\n  const { input1, input2 } = event.data.inputs;\\n  const values = (Array.isArray(input1) ? input1.flat() : [input1 ?? 0]).map(Number);\\nif (!values.length || !values.every(Number.isFinite)) return;\\nconst maximum = Math.max(1,...values.map(Math.abs)), color = typeof input2 === 'string' ? input2 : '#8b5cf6';\\nconst bars = values.map(value => { const bar=document.createElement('div');bar.style.cssText='flex:1;min-width:12px;border-radius:5px 5px 0 0;text-align:center;color:white;font-size:11px;transition:height .2s';bar.style.height=Math.max(12,Math.abs(value)/maximum*100)+'%';bar.style.background=color;bar.textContent=String(value);return bar; });\\ndocument.getElementById('bars').replaceChildren(...bars);\\nparent.postMessage({type:'milver-output',value:{count:values.length,total:values.reduce((a,b)=>a+b,0),maximum:Math.max(...values)}},'*');\\n});\\nparent.postMessage({type:'milver-ready'},'*');\\n</script></body></html>\",\"initial\":[2,5,3,8]}",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "in-1",
+            "name": "in 2",
+            "type": "input",
+            "side": "left",
+            "variable": "input2"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "module": "async function run() {\n  // The page receives these named values via postMessage, without reloading.\n  const config = JSON.parse(value);\n  if (config.mode === 'url' && !['http:','https:'].includes(new URL(config.url).protocol)) throw new Error('Use an HTTP or HTTPS iframe URL.');\n  state.payload = { input1: inputs.input1 ?? config.initial ?? null, input2: inputs.input2 ?? null };\n  // Replies from the embedded page become this block's output.\n  actions.receive = reply => emit(reply);\n}",
+        "recipe": "IframeChart",
+        "render": "function render({ state, value, actions, block }) {\n  // Iframe handles load/ready and input updates. Tune the page in Properties.\n  const config = JSON.parse(value);\n  return <Iframe title={block.label} src={config.mode === 'url' ? config.url : undefined}\n    html={config.mode === 'url' ? undefined : config.html}\n    data={state.payload} block={block} onMessage={actions.receive}/>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "metric-reply",
+      "type": "block",
+      "position": {
+        "x": 840,
+        "y": 0
+      },
+      "width": 300,
+      "height": 230,
+      "data": {
+        "label": "General viewer",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          }
+        ],
+        "module": "async function run() {\n  // Inspect any JSON-compatible JavaScript value, including project object previews.\n  state.result = inputs.input1 ?? null;\n  await render();\n}",
+        "recipe": "GeneralView",
+        "render": "function render() {\n  // state.result: the value received on input1 (objects, arrays, strings or scalars).\n  // Tune the font size and JSON indentation here; non-finite numbers stay visible.\n  const fontSize = 12;\n  const value = state.result;\n  const type = value === null ? 'null' : Array.isArray(value) ? 'Array · ' + value.length : typeof value;\n  const formatted = JSON.stringify(value, (_key, item) => typeof item === 'number' && !Number.isFinite(item) ? String(item) : item, 2);\n  return <div style={{padding:12,width:'100%',height:'100%',boxSizing:'border-box',overflow:'auto',fontFamily:'ui-monospace,monospace'}}>\n    <div style={{fontSize:10,color:'#737373',marginBottom:8}}>{type}</div>\n    <pre style={{fontSize,margin:0,whiteSpace:'pre-wrap',overflowWrap:'anywhere',textAlign:'left'}}>{formatted ?? 'undefined'}</pre>\n  </div>;\n}",
+        "state": {}
+      }
+    },
+    {
+      "id": "chart-reply",
+      "type": "block",
+      "position": {
+        "x": 840,
+        "y": 600
+      },
+      "width": 300,
+      "height": 230,
+      "data": {
+        "label": "General viewer",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          }
+        ],
+        "module": "async function run() {\n  // Inspect any JSON-compatible JavaScript value, including project object previews.\n  state.result = inputs.input1 ?? null;\n  await render();\n}",
+        "recipe": "GeneralView",
+        "render": "function render() {\n  // state.result: the value received on input1 (objects, arrays, strings or scalars).\n  // Tune the font size and JSON indentation here; non-finite numbers stay visible.\n  const fontSize = 12;\n  const value = state.result;\n  const type = value === null ? 'null' : Array.isArray(value) ? 'Array · ' + value.length : typeof value;\n  const formatted = JSON.stringify(value, (_key, item) => typeof item === 'number' && !Number.isFinite(item) ? String(item) : item, 2);\n  return <div style={{padding:12,width:'100%',height:'100%',boxSizing:'border-box',overflow:'auto',fontFamily:'ui-monospace,monospace'}}>\n    <div style={{fontSize:10,color:'#737373',marginBottom:8}}>{type}</div>\n    <pre style={{fontSize,margin:0,whiteSpace:'pre-wrap',overflowWrap:'anywhere',textAlign:'left'}}>{formatted ?? 'undefined'}</pre>\n  </div>;\n}",
+        "state": {}
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "number-metric-0",
+      "source": "number",
+      "target": "metric",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "color-metric-1",
+      "source": "color",
+      "target": "metric",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "csv-chart-0",
+      "source": "csv",
+      "target": "chart",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "color-chart-1",
+      "source": "color",
+      "target": "chart",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-1",
+      "type": "smoothstep"
+    },
+    {
+      "id": "metric-metric-reply-0",
+      "source": "metric",
+      "target": "metric-reply",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "chart-chart-reply-0",
+      "source": "chart",
+      "target": "chart-reply",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    }
+  ]
+}

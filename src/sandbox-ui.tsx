@@ -1,5 +1,6 @@
 import { describeValue, formatValue } from './value-renderer';
-import type { Signal } from './runtime';
+import { isSignal, type Signal } from './runtime';
+import { stringifySignal, parseSignal } from './signal-json';
 export { describeValue, formatValue };
 import * as React from 'react';
 import * as jsxRuntime from 'react/jsx-runtime';
@@ -52,4 +53,24 @@ export class BlockRenderBoundary extends React.Component<{ children: React.React
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: Error) { this.props.onError(error); }
   render() { return this.state.failed ? null : this.props.children; }
+}
+
+export function Iframe({ src, html, data, block, title = 'Embedded page', onMessage }: { src?: string; html?: string; data: Signal; block?: { id?: string; label?: string }; title?: string; onMessage?: (value: Signal) => void }) {
+  const frame = React.useRef<HTMLIFrameElement>(null);
+  const latest = React.useRef({ message: {} as Record<string, unknown>, onMessage });
+  // Detach observed state proxies before crossing the nested iframe boundary.
+  const serialized = stringifySignal({ type: 'milver-input', inputs: data, block: { id: block?.id, label: block?.label } });
+  latest.current = { message: parseSignal(serialized), onMessage };
+  const send = React.useCallback(() => { frame.current?.contentWindow?.postMessage(latest.current.message, '*'); }, []);
+  React.useEffect(() => {
+    const receive = (event: MessageEvent) => {
+      if (event.source !== frame.current?.contentWindow) return;
+      if (event.data?.type === 'milver-ready') send();
+      if (event.data?.type === 'milver-output' && isSignal(event.data.value)) latest.current.onMessage?.(event.data.value);
+    };
+    window.addEventListener('message', receive);
+    return () => window.removeEventListener('message', receive);
+  }, [send]);
+  React.useEffect(send, [serialized, send]);
+  return <iframe ref={frame} title={title} sandbox="allow-scripts" src={html === undefined ? src : undefined} srcDoc={html} onLoad={send} style={{width:'100%',height:'100%',border:0,borderRadius:'inherit',background:'transparent'}}/>;
 }

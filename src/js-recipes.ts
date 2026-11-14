@@ -1,3 +1,4 @@
+import { iframeRecipes } from './iframe-recipes';
 import { interactiveRecipes, demoLibrary } from './interactive-recipes';
 import { dataSourceRecipes } from './data-source-recipes';
 import { tokenizerRecipes } from './tokenizer-recipes';
@@ -62,7 +63,7 @@ export const wasmSource = `export default async function mount({ element, inputs
 export const exampleWasm = 'AGFzbQEAAAABBwFgAn9/AX8DAgEABwcBA2FkZAAACgkBBwAgACABags=';
 export type JsRecipe = { description?: string; label: string; symbol: string; category: string; source: string; render?: string; value: string; inputs: number; outputs: number };
 export const jsRecipes: Record<string, JsRecipe> = {
-  ...operatorRecipes, ...sinkRecipes, ...tokenizerRecipes, ...dataSourceRecipes, ...interactiveRecipes,
+  ...operatorRecipes, ...sinkRecipes, ...tokenizerRecipes, ...dataSourceRecipes, ...interactiveRecipes, ...iframeRecipes,
   ...Object.fromEntries(Object.entries(moduleRecipes).map(([label, source]) => [label, { label: label === 'DOM' ? 'Module' : `${label} example`, symbol: label === 'DOM' ? 'JS' : label === 'LaTeX' ? 'ƒ' : '3D', category: 'JavaScript code blocks', source, value: '1', inputs: 1, outputs: 1 }])),
   Number: { label: 'Number', symbol: '123', category: 'JavaScript datatypes', source: datatype('number'), value: '1', inputs: 0, outputs: 1 },
   Boolean: { label: 'Boolean', symbol: 'T/F', category: 'JavaScript datatypes', source: datatype('boolean'), value: 'true', inputs: 0, outputs: 1 },

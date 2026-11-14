@@ -9,6 +9,7 @@ export function blockPresentation(data: Pick<BlockData, 'kind' | 'recipe' | 'ope
     if (recipe && ['JavaScript datatypes', 'JavaScript sources'].includes(recipe.category)) trail = ['Sources', recipe.label];
     else if (recipe?.category === 'Operators') trail = ['Operators & functions', recipe.label];
     else if (recipe?.category === 'Sinks') trail = ['Sinks', recipe.label];
+    else if (data.recipe === 'Iframe') trail = ['JavaScript', 'Iframe'];
     else if (data.recipe === 'WebAssembly') trail = ['JavaScript', 'WebAssembly'];
     else {
       trail = ['JavaScript', 'Module'];

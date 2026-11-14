@@ -13,7 +13,7 @@ export const defaultRender = `function render({ state, block }) {
     <strong>{String(state.result ?? 'Connect an input')}</strong>
   </div>;
 }`;
-export const controlledPaths = ['label', 'description', 'value', 'width', 'height', 'visuals.background', 'visuals.foreground', 'visuals.radius', 'visuals.showHeader', 'visuals.showLabel', 'visuals.showValue', 'visuals.showPortLabels'] as const;
+export const controlledPaths = ['label', 'description', 'value', 'width', 'height', 'visuals.background', 'visuals.foreground', 'visuals.radius', 'visuals.opacity', 'visuals.showHeader', 'visuals.showLabel', 'visuals.showValue', 'visuals.showPortLabels'] as const;
 export type ControlledPath = typeof controlledPaths[number];
 export const isControlled = (data: BlockData, path: string) => data.controlledProperties?.includes(path as ControlledPath) ?? false;
 
@@ -38,7 +38,7 @@ export function buildBlockModule(logic: string, renderSource: string): string {
   let { inputs = {}, variables = {}, value } = api;
   const { element, state = {}, modules = {}, emit, emitEvent, setValue, setProperty, wasm, ports, renderer } = api;
   let block = { ...api.block, value, state };
-  const { React, Button, Slider, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Latex, MathValue, BlockRenderBoundary, latex, describeValue, formatValue } = api.ui ?? {};
+  const { React, Button, Slider, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Latex, MathValue, Iframe, BlockRenderBoundary, latex, describeValue, formatValue } = api.ui ?? {};
   const { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } = React ?? {};
   const actions = {};
   let reactRoot, cleanup, disposed = false, executing = false, queued = false, renderedDuringRun = false;

@@ -288,3 +288,25 @@ With **Snap to grid and connected ports** enabled, dragging a block or selection
 **My Blocks** uses the same section spacing and block tiles as the Blocks tab. Saved tiles can be clicked or dragged onto the canvas; their delete button appears on hover or focus. **My Projects** contains local saved projects and included examples, each identified by a JSON file icon, project type, author, date and block count. Author and document dates are optional `metadata.author`, `metadata.createdAt` and `metadata.updatedAt` fields in project JSON. Missing authors are shown as “Author not set”; saved-project cards use the local snapshot date. Local cards refresh when projects are saved, renamed, imported or deleted in the project manager.
 
 **My Blocks → Block Examples** includes Metric card (input-controlled number and color), Progress ring (value and maximum), Input-gated button (enabled state and payload), Input-driven block (code-controlled title, background and width), Input-driven pulse (enable/period), Toggle, and Library-powered badge (shared imported formatting/color functions). Open **My Blocks → My Projects → Interactive blocks · React + inputs** for a wired playground ([JSON](examples/interactive-blocks.json)); double-click source controls and buttons to interact. Change the slider, color selector, enable toggle and period to see visuals, outputs and locked properties update. `node scripts/create-interactive-example.mjs` regenerates the project.
+
+## Iframe blocks and appearance controls
+
+**JavaScript → Iframe** embeds editable page HTML or an HTTP(S) URL. In Properties, select HTML/URL and edit the page. Its React render function uses `<Iframe data={state.payload} onMessage={actions.receive}/>`; the helper detaches observed state, sends the newest inputs after load/ready and on updates, and does not reload the page when inputs change.
+
+An embedded page can receive and reply to values with this protocol:
+
+```js
+addEventListener('message', event => {
+  if (event.source !== parent || event.data?.type !== 'milver-input') return;
+  const { input1, input2 } = event.data.inputs;
+  // Update the page, then return JSON-compatible data to the block's output.
+  parent.postMessage({ type: 'milver-output', value: { received: input1 } }, '*');
+});
+parent.postMessage({ type: 'milver-ready' }, '*'); // optional: request current inputs
+```
+
+Messages also include `block: { id, label }`. Only replies from the actual child frame are accepted, and output must be bounded JSON-compatible data. The embedded page runs with `sandbox="allow-scripts"`; the `*` message target is required for its opaque sandbox origin. URL pages must allow embedding and implement the receive protocol; arbitrary existing websites do not automatically understand block inputs.
+
+**Block Examples** adds **Iframe · live metric** (number and color inputs; replies with the received/doubled value) and **Iframe · bar chart** (numeric vectors or CSV rows and color; replies with summary statistics). **My Projects → Iframe inputs · live embedded pages** ([JSON](examples/iframe-inputs.json)) wires both examples to sources and General viewers. The included pages work without external services. Run `node scripts/create-iframe-example.mjs` to regenerate the project. HTML, URL configuration, functions, ports and wiring travel in JSON.
+
+In **Render → Appearance**, width, height and corner radius pair a slider with an editable number. Invalid partial numeric edits are allowed while typing and clamped on blur. **Opacity** is a percentage control saved as `data.visuals.opacity` from 0 to 1; it affects the whole block and is retained in publication exports. Code can control it using `setProperty('visuals.opacity', 0.5)`, which locks both inspector controls until ownership is released.

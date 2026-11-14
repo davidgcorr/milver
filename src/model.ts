@@ -10,7 +10,7 @@ import type { Edge, Node, Viewport } from '@xyflow/react';
 export type Side = 'left' | 'right' | 'top' | 'bottom';
 export type Port = { id: string; name: string; type: 'input' | 'output'; side: Side; offset?: number; variable?: string };
 export type ThemeSettings = { rough?: boolean; roughness?: number; showGrid?: boolean; canvasBackground?: 'plain' | 'aurora' | 'ocean' | 'sunset'; mode: 'light' | 'dark'; hue: number; chroma: number; radius: number };
-export type BlockVisuals = { background?: string; foreground?: string; showHeader?: boolean; showLabel?: boolean; showValue?: boolean; showPortLabels?: boolean; radius?: number };
+export type BlockVisuals = { opacity?: number; background?: string; foreground?: string; showHeader?: boolean; showLabel?: boolean; showValue?: boolean; showPortLabels?: boolean; radius?: number };
 export type FlowSettings = { routePoints?: { x: number; y: number }[]; route?: 'smoothstep' | 'bezier'; points?: { x: number; y: number }[]; animation?: 'none' | 'dash' | 'pulse' | 'glow'; animationSize?: number; speed?: number; reverse?: boolean; color?: string; width?: number };
 export type Canvas = { nodes: BlockNode[]; edges: Edge[]; viewport: Viewport };
 export type BlockData = {
@@ -166,8 +166,9 @@ export function parseDiagram(json: string): Diagram {
         const v = b.visuals;
         for (const key of ['background', 'foreground']) if (v[key] !== undefined && (typeof v[key] !== 'string' || !/^#[0-9a-f]{6}$/i.test(v[key]))) throw new Error('Invalid visual color.');
         for (const key of ['showHeader', 'showLabel', 'showValue', 'showPortLabels']) if (v[key] !== undefined && typeof v[key] !== 'boolean') throw new Error('Invalid visual visibility.');
+        if (v.opacity !== undefined && (!finite(v.opacity) || v.opacity < 0 || v.opacity > 1)) throw new Error('Invalid block opacity.');
         if (v.radius !== undefined && (!finite(v.radius) || v.radius < 0 || v.radius > 60)) throw new Error('Invalid block radius.');
-        data.visuals = Object.fromEntries(['background', 'foreground', 'showHeader', 'showLabel', 'showValue', 'showPortLabels', 'radius'].filter(k => v[k] !== undefined).map(k => [k, v[k]]));
+        data.visuals = Object.fromEntries(['background', 'foreground', 'showHeader', 'showLabel', 'showValue', 'showPortLabels', 'radius', 'opacity'].filter(k => v[k] !== undefined).map(k => [k, v[k]]));
       }
       if (b.exposedOffset !== undefined) { if (!finite(b.exposedOffset) || b.exposedOffset < 0 || b.exposedOffset > 1) throw new Error('Invalid exposed port offset.'); data.exposedOffset = b.exposedOffset; }
       if (b.exposedSide !== undefined) { if (!isSide(b.exposedSide)) throw new Error('Invalid exposed port side.'); data.exposedSide = b.exposedSide; }

@@ -1,3 +1,4 @@
+import { IframeProperties } from './iframe-properties';
 import { SourceProperties } from './source-properties';
 import { BlockIcon } from './block-identity';
 import { blockPresentation } from '@/block-presentation';
@@ -48,7 +49,7 @@ export function Inspector({ maskError, node, edge, nodes, activePort, setActiveP
         <div role="tabpanel" id="panel-properties" aria-labelledby="tab-properties" hidden={tab !== 'properties'}>
         <section className="property-section">
           <Field label={boundary ? 'Port name' : 'Block name'}><Input disabled={isControlled(node.data, 'label')} aria-label={boundary ? 'Interface port name' : 'Block name'} value={node.data.label} onChange={e => update({ label: e.target.value })}/></Field>
-          {['Text','CSV'].includes(node.data.recipe ?? '') ? <SourceProperties key={node.id} data={node.data} update={update}/> : !parent && !boundary && <Field label={(node.data.kind === 'gain' || node.data.recipe === 'Gain') ? 'Gain factor' : node.data.kind === 'constant' ? 'Constant value' : node.data.kind === 'javascript' ? 'Fallback value' : 'Parameter'}><Input disabled={isControlled(node.data, 'value')} aria-label="Display value" value={node.data.value} onChange={e => update({ value: e.target.value })}/></Field>}
+          {['Iframe','IframeMetric','IframeChart'].includes(node.data.recipe ?? '') ? <IframeProperties key={node.id} data={node.data} update={update}/> : ['Text','CSV'].includes(node.data.recipe ?? '') ? <SourceProperties key={node.id} data={node.data} update={update}/> : !parent && !boundary && <Field label={(node.data.kind === 'gain' || node.data.recipe === 'Gain') ? 'Gain factor' : node.data.kind === 'constant' ? 'Constant value' : node.data.kind === 'javascript' ? 'Fallback value' : 'Parameter'}><Input disabled={isControlled(node.data, 'value')} aria-label="Display value" value={node.data.value} onChange={e => update({ value: e.target.value })}/></Field>}
           <Field label="Description"><Textarea disabled={isControlled(node.data, 'description')} aria-label="Block description" rows={2} value={node.data.description} onChange={e => update({ description: e.target.value })}/></Field>
 
           {node.data.kind === 'python' && <p className="field-help">Edit Python source in Code. Source is saved for your own runtime; Python does not execute here.</p>}
