@@ -1,3 +1,9 @@
+import { flushSync } from 'react-dom';
+import { installBrowserMcp } from './mcp/browser';
+import { blockCommand } from './mcp/block-command';
+import { validateProjectEdit } from './mcp/project-edit';
+import type { EditorAdapter } from './mcp/tools';
+import { McpDialog } from './components/mcp-dialog';
 import { snapConnectedBlocks } from './block-snapping';
 import { BlockIcon } from './components/block-identity';
 import { ProjectsDialog } from './components/projects-dialog';
@@ -23,7 +29,7 @@ import {
 import {
   ArrowUpRight, Braces, Check, ChevronDown, ChevronRight, CircleHelp, Copy, Download, Expand,
   Eraser, FolderOpen, Grid3X3, Hand, Home, Map, Menu, Minus, MousePointer2, Network,
-  Palette, PanelRight, Pause, Play, RotateCcw, Square, StepForward, Plus, Redo2, Undo2, Upload,
+  Bot, Palette, PanelRight, Pause, Play, RotateCcw, Square, StepForward, Plus, Redo2, Undo2, Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -93,6 +99,7 @@ function Editor() {
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [json, setJson] = useState('');
   const [jsonError, setJsonError] = useState('');
+  const [mcpOpen, setMcpOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [saved, setSaved] = useState(true);
@@ -404,6 +411,42 @@ function Editor() {
     crumbs.push({ label: parent?.data.label ?? 'Parent block', path: path.slice(0, index + 1) });
   }
 
+  const mcpApi = useRef<EditorAdapter | null>(null);
+  mcpApi.current = {
+    getProject: () => documentRef.current,
+    getPath: () => pathRef.current,
+    commit: candidate => { const next=validateProjectEdit(candidate);flushSync(()=>{snapshot();try{canvasAt(next,pathRef.current);}catch{goTo([]);}replace(next);}); },
+    navigate: nextPath => { flushSync(()=>goTo(nextPath)); },
+    inspect: () => ({ path:pathRef.current, name:documentRef.current.name, selectedNodes:canvasAt(documentRef.current,pathRef.current).nodes.filter(node=>node.selected).map(node=>node.id), selectedEdges:canvasAt(documentRef.current,pathRef.current).edges.filter(edge=>edge.selected).map(edge=>edge.id), workspace:{...ui,mode,libraryTab,activePort,appearance:appearanceOpen,projects:projectsOpen,export:exportOpen,json:jsonOpen,help:helpOpen,mcp:mcpOpen}, preview, errors:maskErrors, history:{undo:history.past.length,redo:history.future.length}, runtime:{enabled:projectRuntime.enabled,live:projectRuntime.live,busy:projectRuntime.busy,error:projectRuntime.error} }),
+    select: (nodeIds,edgeIds) => { const current=canvasAt(documentRef.current,pathRef.current);if(nodeIds.some(id=>!current.nodes.some(node=>node.id===id))||edgeIds.some(id=>!current.edges.some(edge=>edge.id===id)))throw new Error('Selection IDs are not on the current canvas.');flushSync(()=>editCanvas(canvas=>({...canvas,nodes:canvas.nodes.map(node=>({...node,selected:nodeIds.includes(node.id)})),edges:canvas.edges.map(edge=>({...edge,selected:edgeIds.includes(edge.id)}))}),false)); },
+    history: action => { flushSync(()=>action==='undo'?undo():redo()); },
+    workspace: patch => {
+      flushSync(()=>{
+        setUI(current=>({...current,...Object.fromEntries(Object.entries(patch).filter(([key])=>['library','inspector','snap','minimap'].includes(key)))}));
+        if(patch.libraryTab)setLibraryTab(patch.libraryTab as typeof libraryTab);
+        if(patch.mode)setMode(patch.mode as typeof mode);
+        if(typeof patch.appearance==='boolean')setAppearanceOpen(patch.appearance);
+        if(typeof patch.projects==='boolean')setProjectsOpen(patch.projects);
+        if(typeof patch.export==='boolean')setExportOpen(patch.export);
+        if(typeof patch.help==='boolean')setHelpOpen(patch.help);
+        if(typeof patch.mcp==='boolean')setMcpOpen(patch.mcp);
+        if(typeof patch.json==='boolean'){if(patch.json)openJson();else setJsonOpen(false);}
+        if(patch.viewport)editCanvas(canvas=>({...canvas,viewport:patch.viewport as Canvas['viewport']}),false);
+      });
+      if(patch.fit)void flow.fitView({padding:.35,maxZoom:1});
+      if(patch.inspectorTab){const tab=window.document.getElementById('tab-'+patch.inspectorTab);if(!tab)throw new Error('Select a block to open its inspector first.');flushSync(()=>(tab as HTMLElement).click());}
+      if(patch.inspectorWidth){if(!window.document.querySelector('.resizable-inspector'))throw new Error('Inspector must be open.');flushSync(()=>window.dispatchEvent(new CustomEvent('milver-inspector-width',{detail:patch.inspectorWidth})));}
+    },
+    runtime: action => {if(action==='inspect')return {enabled:projectRuntime.enabled,live:projectRuntime.live,busy:projectRuntime.busy,error:projectRuntime.error,result:projectRuntime.result};flushSync(()=>{if(action==='run')projectRuntime.setLive(true);if(action==='pause')projectRuntime.setLive(false);if(action==='step')projectRuntime.step();if(action==='stop')projectRuntime.stop();if(action==='reset')projectRuntime.reset();});return {ok:true};},
+    blockCommand,
+    get storage(){return window.localStorage;},
+    uiRoot: () => window.document,
+  };
+  useEffect(()=>{
+    const adapter=new Proxy({} as EditorAdapter,{get:(_target,key)=>Reflect.get(mcpApi.current!,key)});
+    const bridge=installBrowserMcp(adapter);return()=>bridge.dispose();
+  },[]);
+
   return <TooltipProvider delayDuration={250}><RoughContext.Provider value={{ enabled: theme.rough === true, roughness: theme.roughness ?? 1 }}><ProjectContext.Provider value={{ myBlocks: document.myBlocks ?? [], saveBlock, insertSavedBlock, openProject: next => { snapshot(); goTo([]); replace(next); }, removeSavedBlock: id => { snapshot(); replace({ ...documentRef.current, myBlocks: documentRef.current.myBlocks?.filter(b => b.id !== id) }); }, modules: document.modules ?? [], catalog: projectRuntime.result?.catalog ?? [], values: projectValues, loadExample: example => { snapshot(); goTo([]); replace(parseDiagram(example === 'iframe' ? iframeExample : example === 'interactive' ? interactiveExample : example === 'nanogpt' ? nanogptExample : example === 'dictionary' ? dictionaryExample : example === 'attention' ? attentionExample : forwardExample)); }, createModule: createProjectModule, updateModule: updateProjectModule, removeModule: removeProjectModule, addBlock: addProjectBlock }}><PreviewContext.Provider value={{ values: preview, emit, setValue: setSourceValue, saveState: saveBlockState, setProperty: setCodeProperty, report: reportMask }}><FlowContext.Provider value={{ update: updateEdge, snapshot }}><BlockContext.Provider value={{ snapshot, enter, movePort, setHeader: (id, showHeader) => editCanvas(c => ({ ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, data: { ...n.data, visuals: { ...n.data.visuals, showHeader } } } : n) })) }}><main className={`milver-workspace ${theme.rough ? 'rough-mode' : ''}`} aria-label="milver block diagram editor">
     <ReactFlow<BlockNode> style={{ background: canvasBackground(theme) }}
       nodes={nodes} edges={edges.map(e => ({ ...e, type: 'recipe', data: { route: e.type === 'default' ? 'bezier' : 'smoothstep', ...e.data } }))} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
@@ -437,6 +480,7 @@ function Editor() {
     </Card>
 
     <Card className="floating-island actions-island" role="toolbar" aria-label="Diagram actions">
+      <IconButton label="Browser MCP" onClick={()=>setMcpOpen(true)}><Bot/></IconButton>
       <IconButton label="Projects" onClick={() => setProjectsOpen(true)}><FolderOpen/></IconButton>
       <IconButton label="Import JSON" onClick={() => fileRef.current?.click()}><Upload/></IconButton><IconButton label="Export diagram" onClick={() => setExportOpen(true)}><Download/></IconButton><IconButton label="JSON editor" onClick={openJson}><Braces/></IconButton><Separator orientation="vertical"/>
       <IconButton label="Appearance" aria-expanded={appearanceOpen} variant={appearanceOpen ? 'secondary' : 'ghost'} onClick={() => setAppearanceOpen(v => !v)}><Palette/></IconButton>
@@ -463,6 +507,7 @@ function Editor() {
     <Card className="floating-island zoom-island"><IconButton label="Zoom out" onClick={() => void flow.zoomOut({ duration: 150 })}><Minus/></IconButton><span className="zoom-value">{Math.round(canvas.viewport.zoom * 100)}%</span><IconButton label="Zoom in" onClick={() => void flow.zoomIn({ duration: 150 })}><Plus/></IconButton><Separator orientation="vertical"/><IconButton label="Fit to view (1)" onClick={() => void flow.fitView({ padding: 0.35, maxZoom: 1, duration: 200 })}><Expand/></IconButton><IconButton label="Toggle minimap" aria-pressed={ui.minimap} onClick={() => setUI(u => ({ ...u, minimap: !u.minimap }))}><Map/></IconButton></Card>
     {projectRuntime.enabled && <Card className="floating-island execution-island" role="toolbar" aria-label="Project execution"><IconButton label={projectRuntime.live ? 'Pause project' : 'Enable live project'} aria-pressed={projectRuntime.live} onClick={() => projectRuntime.setLive(!projectRuntime.live)}>{projectRuntime.live ? <Pause/> : <Play/>}</IconButton><IconButton label="Run project once" disabled={projectRuntime.busy} onClick={projectRuntime.step}><Play/></IconButton><IconButton label="Step project" disabled={projectRuntime.busy} onClick={projectRuntime.step}><StepForward/></IconButton><IconButton label="Stop project" onClick={projectRuntime.stop}><Square/></IconButton><IconButton label="Reset project instances" onClick={projectRuntime.reset}><RotateCcw/></IconButton><span role="status">{projectRuntime.busy ? 'Running…' : projectRuntime.error ? 'Error' : `${projectRuntime.live ? 'Live' : 'Paused'} · step ${projectRuntime.result?.tick ?? 0}`}</span></Card>}
     {projectRuntime.error && <div className="project-runtime-error" role="alert">{projectRuntime.error}</div>}
+    {mcpOpen && <McpDialog close={()=>setMcpOpen(false)}/>}
     {projectsOpen && <ProjectsDialog diagram={document} close={() => setProjectsOpen(false)} openProject={next => { snapshot(); goTo([]); replace(next); notify('Project opened'); }}/>}
     <input className="sr-only" tabIndex={-1} ref={fileRef} type="file" accept=".json,application/json" aria-label="Import diagram file" onChange={async event => {
       const file = event.target.files?.[0]; event.target.value = '';

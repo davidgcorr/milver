@@ -1,3 +1,4 @@
+import { browserUi } from '@/mcp/dom';
 import { signalReplacer, signalReviver, stringifySignal, parseSignal } from '@/signal-json';
 import sandboxStyles from '../sandbox-ui.css?raw';
 import { ProjectContext } from '@/project/context';
@@ -53,6 +54,8 @@ async function flush() {
    }
  } } catch(error) { report(error); } finally { running=false; }
 }
+const browserUi=(${browserUi.toString()});
+addEventListener('message',async e=>{if(e.source!==parent||e.data?.type!=='mask-command')return;try{const request=e.data;let result;if(request.action==='inspect')result=current?.inspect?.()??{state,actions:[]};else if(request.action==='ui')result=browserUi(request.command,document);else if(request.action==='action'){if(!current?.invokeAction)throw new Error('This renderer does not expose actions.');result=await current.invokeAction(request.name,request.args??[]);}else throw new Error('Unknown block command.');send({type:'mask-command-result',requestId:request.requestId,result:result??null});}catch(error){send({type:'mask-command-result',requestId:e.data.requestId,error:error?.message??String(error)});}});
 addEventListener('message',e=>{if(e.source===parent&&e.data?.type==='mask-input'){pending=e.data;flush();}});
 const urls=[];
 addEventListener('pagehide',()=>{if(typeof current==='function')current();else current?.destroy?.();urls.forEach(url=>URL.revokeObjectURL(url));});
@@ -125,7 +128,7 @@ export function ModuleMask({ id, source, render, state, value, color, background
     const send = () => { const data = latest.current; frame.current?.contentWindow?.postMessage({ type: 'mask-input', ...data, color: frame.current ? getComputedStyle(frame.current).color : data.color, inputs: parseSignal(data.inputs), block: parseSignal(data.block) }, '*'); };
     const receive = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow || e.data?.token !== token.current) return;
-      if (e.data.type === 'mask-ready') send();
+      if (e.data.type === 'mask-ready') { if(frame.current)frame.current.dataset.milverReady='true';send(); }
       if (e.data.type === 'mask-output' && typeof e.data.port === 'string' && isSignal(e.data.value)) emit(id, e.data.port, e.data.value, e.data.event === true);
       if (e.data.type === 'mask-value' && typeof e.data.value === 'string' && e.data.value.length <= 100000) setValue(id, e.data.value);
       if (e.data.type === 'mask-state' && isSignal(e.data.state) && e.data.state && !Array.isArray(e.data.state) && typeof e.data.state === 'object') { savedState.current = e.data.state; saveState(id, e.data.state); }
@@ -137,5 +140,5 @@ export function ModuleMask({ id, source, render, state, value, color, background
     window.addEventListener('message', receive); return () => window.removeEventListener('message', receive);
   }, [id, emit, setValue, saveState, setProperty, report, settings]);
   useEffect(() => { frame.current?.contentWindow?.postMessage({ type: 'mask-input', inputs: parseSignal(inputs), state: stateInput, value, block: parseSignal(block), color: frame.current ? getComputedStyle(frame.current).color : color, background }, '*'); }, [inputs, state, value, color, background, document, block]);
-  return <iframe key={document.token} ref={frame} title="JavaScript block mask" className={`module-mask ${interactive ? 'mask-interactive nodrag nopan nowheel' : ''}`} tabIndex={interactive ? 0 : -1} sandbox="allow-scripts" srcDoc={document.source}/>;
+  return <iframe data-milver-block-id={id} key={document.token} ref={frame} title="JavaScript block mask" className={`module-mask ${interactive ? 'mask-interactive nodrag nopan nowheel' : ''}`} tabIndex={interactive ? 0 : -1} sandbox="allow-scripts" srcDoc={document.source}/>;
 }

@@ -13,7 +13,7 @@ export const defaultRender = `function render({ state, block }) {
     <strong>{String(state.result ?? 'Connect an input')}</strong>
   </div>;
 }`;
-export const controlledPaths = ['label', 'description', 'value', 'width', 'height', 'visuals.background', 'visuals.foreground', 'visuals.radius', 'visuals.opacity', 'visuals.showHeader', 'visuals.showLabel', 'visuals.showValue', 'visuals.showPortLabels'] as const;
+export const controlledPaths = ['label', 'description', 'value', 'width', 'height', 'visuals.background', 'visuals.foreground', 'visuals.radius', 'visuals.opacity', 'visuals.shadow', 'visuals.strokeWidth', 'visuals.strokeColor', 'visuals.showHeader', 'visuals.showLabel', 'visuals.showValue', 'visuals.showPortLabels'] as const;
 export type ControlledPath = typeof controlledPaths[number];
 export const isControlled = (data: BlockData, path: string) => data.controlledProperties?.includes(path as ControlledPath) ?? false;
 
@@ -87,6 +87,8 @@ export function buildBlockModule(logic: string, renderSource: string): string {
       block = { ...block, ...nextBlock, value, state };
       await execute();
     },
+    async invokeAction(name, args = []) { if (!Object.hasOwn(actions, name) || typeof actions[name] !== 'function') throw new Error('Unknown block action: ' + name); return await actions[name](...args); },
+    inspect() { return { inputs, value, state, block, actions: Object.keys(actions) }; },
     async destroy() { disposed = true; unsubscribe?.(); reactRoot?.unmount(); for (const dispose of disposers.splice(0)) await dispose(); if (typeof cleanup === 'function') await cleanup(); }
   };
 }`;

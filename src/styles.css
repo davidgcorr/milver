@@ -355,3 +355,6 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .number-slider-control{display:grid;grid-template-columns:minmax(0,1fr) 76px;align-items:center;gap:12px;min-width:0}
 .number-slider-control>[data-slot=slider]{min-width:0}
 .number-slider-control>input{font-variant-numeric:tabular-nums;text-align:right}
+
+.mcp-dialog{width:min(700px,calc(100vw - 32px));max-width:700px;max-height:90vh;overflow:auto}
+.mcp-output{max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--border);border-radius:6px;padding:10px;font:11px ui-monospace,monospace;background:var(--muted)}

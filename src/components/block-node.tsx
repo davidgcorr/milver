@@ -1,7 +1,7 @@
 import { BlockTrail } from './block-identity';
 import { blockPresentation } from '@/block-presentation';
 import { RenderBoundary } from './render-boundary';
-import { RoughBlockOutline } from './rough-shapes';
+import { RoughBlockOutline, RoughContext } from './rough-shapes';
 import { isControlled } from '@/block-code';
 import { ProjectContext } from '@/project/context';
 import { ValueRenderer } from './value-renderer';
@@ -22,6 +22,7 @@ export function Block(props: NodeProps<BlockNode>) {
 }
 function BlockContent({ id, data, selected, width = 164, height = 116, positionAbsoluteX = 0, positionAbsoluteY = 0 }: NodeProps<BlockNode>) {
   const project = useContext(ProjectContext);
+  const rough = useContext(RoughContext).enabled;
   const runtime = project.values[id];
   const [snapGuide, setSnapGuide] = useState<{ side: Port['side']; offset: number } | null>(null);
   const [interactive, setInteractive] = useState(false);
@@ -42,15 +43,16 @@ function BlockContent({ id, data, selected, width = 164, height = 116, positionA
   const visuals = data.visuals ?? {};
   const ink = visuals.foreground ?? 'var(--primary)';
   const fill = visuals.background ?? 'var(--card)';
+  const frameStyle = { borderColor: rough ? 'transparent' : visuals.strokeColor, borderWidth: visuals.strokeWidth, boxShadow: visuals.shadow === undefined ? undefined : visuals.shadow === 0 ? 'none' : `0 ${visuals.shadow/3}px ${visuals.shadow}px #00000026` };
   const parent = data.kind === 'subsystem';
   const boundary = data.kind === 'inport' || data.kind === 'outport';
-  if (boundary) return <div ref={block} tabIndex={0} className={cn('interface-port-node', selected && 'is-selected')} style={{ color: ink, background: fill, opacity: visuals.opacity }} aria-label={`${data.label} · parent ${data.kind === 'inport' ? 'input' : 'output'}`}>
-    <span className="interface-port-symbol">{data.kind === 'inport' ? '→' : '←'}</span><RoughBlockOutline id={id} width={28} height={28} circle/>
+  if (boundary) return <div ref={block} tabIndex={0} className={cn('interface-port-node', selected && 'is-selected')} style={{ color: ink, background: fill, opacity: visuals.opacity, ...frameStyle }} aria-label={`${data.label} · parent ${data.kind === 'inport' ? 'input' : 'output'}`}>
+    <span className="interface-port-symbol">{data.kind === 'inport' ? '→' : '←'}</span><RoughBlockOutline id={id} width={28} height={28} circle strokeWidth={visuals.strokeWidth} color={visuals.strokeColor}/>
     <span className="interface-port-name">{data.label}</span>
     {data.ports.map(p => <Handle key={p.id} id={p.id} type={p.type === 'input' ? 'target' : 'source'} position={positions[p.side]} className={`compact-port-handle port-${p.type}`} title={`${p.name} · ${p.type}`}/>)}
   </div>;
-  return <Card ref={block} tabIndex={0} onDoubleClick={event => { if (['javascript', 'renderer'].includes(data.kind)) { event.stopPropagation(); setInteractive(true); } }} onKeyDown={event => { if (['javascript', 'renderer'].includes(data.kind) && event.key === 'Enter' && event.target === event.currentTarget) setInteractive(true); }} className={cn('diagram-block', selected && 'block-selected', interactive && 'block-editing', parent && 'parent-block', boundary && 'interface-block', runtime?.status === 'error' && 'runtime-block-error')} style={{ background: fill, color: ink, opacity: visuals.opacity, borderRadius: visuals.radius, '--block-ink': ink, ...(visuals.foreground ? { '--primary': visuals.foreground, '--muted-foreground': visuals.foreground } : {}) } as React.CSSProperties}>
-    <RoughBlockOutline id={id} width={width} height={height}/>
+  return <Card ref={block} tabIndex={0} onDoubleClick={event => { if (['javascript', 'renderer'].includes(data.kind)) { event.stopPropagation(); setInteractive(true); } }} onKeyDown={event => { if (['javascript', 'renderer'].includes(data.kind) && event.key === 'Enter' && event.target === event.currentTarget) setInteractive(true); }} className={cn('diagram-block', selected && 'block-selected', interactive && 'block-editing', parent && 'parent-block', boundary && 'interface-block', runtime?.status === 'error' && 'runtime-block-error')} style={{ background: fill, color: ink, opacity: visuals.opacity, ...frameStyle, borderRadius: visuals.radius, '--block-ink': ink, ...(visuals.foreground ? { '--primary': visuals.foreground, '--muted-foreground': visuals.foreground } : {}) } as React.CSSProperties}>
+    <RoughBlockOutline id={id} width={width} height={height} strokeWidth={visuals.strokeWidth} color={visuals.strokeColor}/>
     <NodeResizer isVisible={selected && !isControlled(data, 'width') && !isControlled(data, 'height')} minWidth={120} minHeight={90} color="var(--primary)" onResizeStart={snapshot}/>
     {visuals.showHeader !== false ? <div className="block-type-trail" title={blockPresentation(data).trail.join(' > ')}><BlockTrail data={data}/><button type="button" className="type-collapse nodrag nopan" disabled={isControlled(data, 'visuals.showHeader')} aria-label="Collapse block type" aria-expanded="true" onClick={event => { event.stopPropagation(); setHeader(id, false); }} onDoubleClick={event => event.stopPropagation()}><ChevronDown/></button></div> : <button type="button" className="block-type-expand nodrag nopan" disabled={isControlled(data, 'visuals.showHeader')} aria-label="Show block type" aria-expanded="false" onClick={event => { event.stopPropagation(); setHeader(id, true); }} onDoubleClick={event => event.stopPropagation()}><ChevronDown/></button>}
     {snapGuide && <div aria-hidden="true" className={`port-snap-guide ${snapGuide.side === 'left' || snapGuide.side === 'right' ? 'horizontal' : 'vertical'}`} style={snapGuide.side === 'left' || snapGuide.side === 'right' ? { top: `${snapGuide.offset * 100}%` } : { left: `${snapGuide.offset * 100}%` }}/>}
