@@ -1,3 +1,4 @@
+import { InspectorProperties } from './inspector-properties';
 import { IframeProperties } from './iframe-properties';
 import { SourceProperties } from './source-properties';
 import { BlockIcon } from './block-identity';
@@ -55,6 +56,7 @@ export function Inspector({ maskError, node, edge, nodes, activePort, setActiveP
           {node.data.kind === 'python' && <p className="field-help">Edit Python source in Code. Source is saved for your own runtime; Python does not execute here.</p>}
 
         </section>
+        <InspectorProperties data={node.data} update={update}/>
         {node.data.kind === 'module' && <ProjectModuleProperties key={node.id} node={node} update={update}/>}
         {node.data.operation && <OperationProperties key={node.id} node={node} update={update}/>}
 

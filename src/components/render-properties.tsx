@@ -1,3 +1,5 @@
+import { Code2 } from 'lucide-react';
+import { InspectorSection } from './inspector-section';
 import {renderAvailable} from '@/block-functions';
 import { jsRecipes, applyJsRecipe } from '@/js-recipes';
 import { viewerLogic, viewerRender } from '@/viewer-code';
@@ -18,14 +20,14 @@ export function RenderProperties({ node, update, resize }: { node: BlockNode; up
   const [error, setError] = useState('');
   const [draft, setDraft] = useState(source);
   useEffect(() => setDraft(source), [node.id, source]);
-  return <><VisualProperties node={node} update={update} resize={resize}/>{<section className={`property-section ${disabled?'function-disabled':''}`} aria-disabled={disabled}>
-    <><h3>Render function</h3>
+  return <><VisualProperties node={node} update={update} resize={resize}/><InspectorSection title="Render function" icon={Code2}><section className={`property-section ${disabled?'function-disabled':''}`} aria-disabled={disabled}>
+    <>
     {available&&<label className="visibility-option"><span>Enable render function</span><input aria-label="Enable render function" type="checkbox" checked={node.data.renderEnabled!==false} onChange={event=>update({renderEnabled:event.target.checked})}/></label>}
-    {disabled&&<p className="field-help">{!available?'Rendering is managed by the project runtime for this block.':node.data.visuals?.showValue===false?'Mask content is hidden. Enable it in Appearance to use the render function.':'Render is disabled; Code and outputs continue to run.'}</p>}<p className="field-help">A React component returning JSX. Shared scope: <code>inputs</code>, <code>state</code>, <code>block</code>, <code>modules</code>. Rendering updates automatically; use hooks for visuals and Code/actions for behavior.</p>
+    {disabled&&<p className="field-help">{!available?'Rendering is managed by the project runtime for this block.':node.data.visuals?.showValue===false?'Mask content is hidden. Enable it in Appearance to use the render function.':'Render is disabled; Code and outputs continue to run.'}</p>}
     <Field label="render({ inputs, state, block, modules })"><CodeEditor disabled={disabled} label="Render function source" value={draft} onChange={setDraft}/></Field>
     {!disabled&&<BlockHelp node={node} render insert={snippet => setDraft(completeFunction(snippet, 'render'))}/>}
     {error && <p className="code-error" role="alert">{error}</p>}
-    <Button disabled={disabled} variant="outline" size="sm" onClick={() => { setDraft(template); setError(''); }}>Use React template</Button>
-    <Button size="sm" disabled={disabled || draft === source || draft.length > 100000} onClick={() => { try { buildBlockModule(node.data.module ?? (node.data.kind === 'renderer' ? viewerLogic : ''), draft); update({ render: completeFunction(draft,'render') }); setError(''); } catch (e) { setError(String(e)); } }}>Apply render</Button></>
-  </section>}</>;
+    <div className="code-editor-actions"><Button disabled={disabled} variant="outline" size="sm" onClick={() => { setDraft(template); setError(''); }}>Use React template</Button>
+    <Button size="sm" disabled={disabled || draft === source || draft.length > 100000} onClick={() => { try { buildBlockModule(node.data.module ?? (node.data.kind === 'renderer' ? viewerLogic : ''), draft); update({ render: completeFunction(draft,'render') }); setError(''); } catch (e) { setError(String(e)); } }}>Apply render</Button></div></>
+  </section></InspectorSection></>;
 }

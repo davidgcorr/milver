@@ -1,3 +1,4 @@
+import { defineInspectorProperty } from './inspector-properties';
 import { flushSync } from 'react-dom';
 import { installBrowserMcp } from './mcp/browser';
 import { blockCommand } from './mcp/block-command';
@@ -158,10 +159,14 @@ function Editor() {
     editCanvas(c => ({ ...c, nodes: c.nodes.map(n => n.id === id && !signalsEqual(n.data.state, state) ? { ...n, data: { ...n.data, state } } : n) }), false);
   }, [editCanvas]);
   const setCodeProperty = useCallback((id: string, property: string, value: Signal) => {
-    if (!controlledPaths.includes(property as ControlledPath)) return;
+    if (!controlledPaths.includes(property as ControlledPath) && !property.startsWith('propertyFields.')) return;
     const root = documentRef.current;
     const next = updateCanvas(root, pathRef.current, c => ({ ...c, nodes: c.nodes.map(n => {
       if (n.id !== id) return n;
+      if (property.startsWith('propertyFields.')) {
+        try { return { ...n, data: { ...n.data, ...defineInspectorProperty(n.data, property.slice(15), value) } }; }
+        catch (error) { reportMask(id, error instanceof Error ? error.message : String(error)); return n; }
+      }
       const controlledProperties = [...new Set([...(n.data.controlledProperties ?? []), property as ControlledPath])];
       if (property === 'width' || property === 'height') return { ...n, [property]: value, data: { ...n.data, controlledProperties } } as BlockNode;
       if (property.startsWith('visuals.')) return { ...n, data: { ...n.data, controlledProperties, visuals: { ...n.data.visuals, [property.slice(8)]: value } } } as BlockNode;

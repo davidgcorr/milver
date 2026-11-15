@@ -118,3 +118,26 @@ it('renders the final async code result even after an explicit intermediate rend
     expect(element.textContent).toBe('ready');expect(outputs(run)).toEqual(['ready']);
   }finally{if(run)await act(async()=>run.dispose());element.remove();}
 });
+it('exposes Code and React render parameters through the sandbox and reacts to tuning', async () => {
+  const element = document.createElement('div'); document.body.append(element);
+  const source = buildBlockModule(`async function run() {
+    const gain = defineProperty('gain', { type: 'number', default: 2, min: 0, max: 10 });
+    state.result = (inputs.signal ?? 0) * gain;
+    emit(state.result);
+  }`, `function render({ defineProperty }) {
+    const color = defineProperty('accent', { type: 'color', default: '#1971c2' });
+    return <strong style={{color}}>{state.result}</strong>;
+  }`);
+  let run!: Awaited<ReturnType<typeof sandbox>>;
+  try {
+    await act(async () => { run = await sandbox(source, [], {}, { element, ui }); });
+    await act(async () => run.send('0', 3));
+    expect(element.textContent).toBe('6');
+    expect(run.messages.filter(m => m.type === 'mask-property').map(m => m.path)).toEqual(['propertyFields.gain', 'propertyFields.accent']);
+    await act(async () => run.send('0', 3, { parameters: { gain: 4, accent: '#e03131' } }));
+    expect(element.textContent).toBe('12'); expect(element.querySelector('strong')!.style.color).toBe('rgb(224, 49, 49)');
+    expect(outputs(run).at(-1)).toBe(12);
+    expect(run.messages.filter(m => m.type === 'mask-property')).toHaveLength(2);
+    expect(run.messages.filter(m => m.type === 'mask-error')).toEqual([]);
+  } finally { if (run) await act(async () => run.dispose()); element.remove(); }
+});

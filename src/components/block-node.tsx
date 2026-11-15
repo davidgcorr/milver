@@ -44,7 +44,7 @@ function BlockContent({ id, data, selected, width = 164, height = 116, positionA
   const visuals = data.visuals ?? {};
   const ink = visuals.foreground ?? 'var(--primary)';
   const fill = visuals.background ?? 'var(--card)';
-  const frameStyle = { borderColor: rough ? 'transparent' : visuals.strokeColor, borderWidth: visuals.strokeWidth, boxShadow: visuals.shadow === undefined ? undefined : visuals.shadow === 0 ? 'none' : `0 ${visuals.shadow/3}px ${visuals.shadow}px #00000026` };
+  const frameStyle = { borderColor: rough ? 'transparent' : visuals.strokeColor, borderWidth: visuals.strokeWidth, boxShadow: visuals.shadow === undefined && !visuals.shadowColor ? undefined : visuals.shadow === 0 ? 'none' : `0 ${(visuals.shadow ?? 2)/3}px ${visuals.shadow ?? 2}px ${visuals.shadowColor ?? '#000000'}26` };
   const parent = data.kind === 'subsystem';
   const boundary = data.kind === 'inport' || data.kind === 'outport';
   if (boundary) return <div ref={block} tabIndex={0} className={cn('interface-port-node', selected && 'is-selected')} style={{ color: ink, background: fill, opacity: visuals.opacity, ...frameStyle }} aria-label={`${data.label} · parent ${data.kind === 'inport' ? 'input' : 'output'}`}>

@@ -1,3 +1,4 @@
+import { parseInspectorProperties } from './inspector-properties';
 import { controlledPaths, type ControlledPath } from './block-code';
 import { isSignal, type Signal } from './runtime';
 import type { Port } from './model';
@@ -47,5 +48,5 @@ export function parseCodeFields(data: Record<string, unknown>, ports: Port[]) {
     if (r.fontSize !== undefined && (!Number.isFinite(r.fontSize) || r.fontSize < 10 || r.fontSize > 72)) throw new Error('Invalid renderer font size.');
     result.renderer = { precision: r.precision, slice: r.slice, ...(r.fontSize !== undefined ? { fontSize: r.fontSize } : {}) };
   }
-  return result;
+  return { ...result, ...parseInspectorProperties(data) };
 }

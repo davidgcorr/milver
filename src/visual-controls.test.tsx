@@ -21,13 +21,15 @@ it('keeps sliders and editable numbers in sync, supports opacity, and respects c
     await key('Block corner radius','End');expect(node.data.visuals?.radius).toBe(60);
     await number('Block shadow','14');expect(node.data.visuals?.shadow).toBe(14);
     await number('Block stroke width','3.5');expect(node.data.visuals?.strokeWidth).toBe(3.5);
+    await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Block fill #ffc9c9"]')!.click());expect(node.data.visuals?.background).toBe('#ffc9c9');
+    await number('Block shadow color','#1971c2');expect(node.data.visuals?.shadowColor).toBe('#1971c2');
     await number('Block stroke color','#123456');expect(node.data.visuals?.strokeColor).toBe('#123456');
     await number('Block opacity','45');expect(node.data.visuals?.opacity).toBe(.45);
     await number('Block width','1');expect(node.width).toBe(241);
     await act(async()=>host.querySelector('input[aria-label="Block width"]')!.dispatchEvent(new FocusEvent('focusout',{bubbles:true})));expect(node.width).toBe(120);
     const diagram={version:1 as const,name:'Visuals',nodes:[node],edges:[],viewport:{x:0,y:0,zoom:1}};
-    const restored=parseDiagram(serializeDiagram(diagram));expect(restored.nodes[0].data.visuals).toMatchObject({opacity:.45,shadow:14,strokeWidth:3.5,strokeColor:'#123456'});
-    const exported=buildScene(restored,collectPages(restored,[],'current'),defaultExportOptions).body;expect(exported).toContain('feDropShadow');expect(exported).toContain('stroke="#123456" stroke-width="3.5"');
+    const restored=parseDiagram(serializeDiagram(diagram));expect(restored.nodes[0].data.visuals).toMatchObject({opacity:.45,shadow:14,strokeWidth:3.5,strokeColor:'#123456',shadowColor:'#1971c2'});
+    const exported=buildScene(restored,collectPages(restored,[],'current'),defaultExportOptions).body;expect(exported).toContain('feDropShadow');expect(exported).toContain('flood-color="#1971c2"');expect(exported).toContain('stroke="#123456" stroke-width="3.5"');
     expect(buildScene(restored,collectPages(restored,[],'current'),defaultExportOptions).body).toContain('opacity="0.45"');
     node={...node,data:{...node.data,controlledProperties:['width','visuals.opacity','visuals.shadow','visuals.strokeWidth','visuals.strokeColor']}};
     await act(async()=>root.render(createElement(TooltipProvider,null,createElement(VisualProperties,{node,update(){},resize(){}}))));

@@ -20,3 +20,13 @@ it('keeps earlier body-only projects working and inserts snippets inside the fun
   expect(insertFunctionSnippet(wrapped,'await render();')).toMatch(/await render\(\);\s*}$/);
   expect(()=>buildBlockModule('emit(1);','element.textContent="OK";')).not.toThrow();
 });
+it('declares tunable fields from Code and Render and reads updated values without resetting them', async () => {
+  const source = buildBlockModule(`async function run({ defineProperty }) { emit(defineProperty('gain', { type: 'number', default: 2 }) * (inputs.input1 ?? 1)); }`, `async function render({ defineProperty }) { element.textContent = defineProperty('title', { type: 'text', default: 'Hello' }); }`);
+  const module = await import(/* @vite-ignore */ `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const element = { textContent: '' }, outputs: number[] = [], definitions: unknown[] = [];
+  const mounted = await module.default({ element, inputs: { input1: 3 }, state: {}, emit: (v: number) => outputs.push(v), setProperty: (path: string, value: unknown) => definitions.push({ path, value }) });
+  expect(outputs).toEqual([6]); expect(element.textContent).toBe('Hello'); expect(definitions).toHaveLength(2);
+  await mounted.update({ input1: 4 }, '', {}, { parameters: { gain: 5, title: 'Tuned' } });
+  expect(outputs).toEqual([6, 20]); expect(element.textContent).toBe('Tuned'); expect(definitions).toHaveLength(2);
+  await mounted.destroy();
+});

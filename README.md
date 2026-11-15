@@ -311,7 +311,9 @@ Messages also include `block: { id, label }`. Only replies from the actual child
 
 In **Render → Appearance**, width, height and corner radius pair a slider with an editable number. Invalid partial numeric edits are allowed while typing and clamped on blur. **Opacity** is a percentage control saved as `data.visuals.opacity` from 0 to 1; it affects the whole block and is retained in publication exports. Code can control it using `setProperty('visuals.opacity', 0.5)`, which locks both inspector controls until ownership is released.
 
-**Block appearance** adds shadow (0–40 px; 0 disables), stroke width (0–12 px) and stroke color under Render → Appearance. These apply in normal/rough mode, survive JSON and saved blocks, and appear in publication exports. Code can own them with `setProperty('visuals.shadow', 12)`, `setProperty('visuals.strokeWidth', 2)` and `setProperty('visuals.strokeColor', '#2563eb')`; owned inspector controls are locked.
+**Color selectors** provide preset swatches and a separate custom color well for fill, ink, stroke, shadow and wires. Stroke and shadow colors share a row.
+
+**Block appearance** adds shadow (0–40 px; 0 disables), stroke width (0–12 px) and stroke color under Render → Appearance. These apply in normal/rough mode, survive JSON and saved blocks, and appear in publication exports. Code can own them with `setProperty('visuals.shadow', 12)`, `setProperty('visuals.strokeWidth', 2)` and `setProperty('visuals.strokeColor', '#2563eb')`, and `setProperty('visuals.shadowColor', '#1971c2')`; owned inspector controls are locked.
 
 **Browser MCP control** (robot toolbar button) exposes the editor through native WebMCP where supported, `window.milverMcp`, and a browser-local MCP JSON-RPC MessagePort transport. Tools cover projects, blocks, code/render/state, libraries, nested canvases/ports, connections, history, customization, runtime, saved items, exports and all rendered UI controls. No backend is required. External MCP clients need a browser connector; the static site does not serve `/mcp`. See [connection examples and complete tool coverage](docs/browser-mcp.md).
 
@@ -328,3 +330,22 @@ HTML export includes the saved render function for every JavaScript/math viewer 
 All blocks expose consistent Code and Render tabs, including older constants, gain/sum blocks, parent interfaces and shared computations. Blocks whose visuals/routing are handled by the project runtime show their function sections in grey. **Enable render function** persists as `data.renderEnabled`; disabling it keeps the original render source and continues executing Code/outputs. Hiding Mask content also greys its Render editor. Source `setValue()` updates controls immediately and saves the change through the parent bridge; acknowledgements do not reset controls or duplicate outputs. Canvas controls activate on double-click or Enter, while published HTML controls are interactive immediately. Published controls are positioned HTML iframes alongside SVG geometry, avoiding browser interaction problems inside SVG foreign objects.
 
 **Block Examples → Matrix activation controls** is the two-slope matrix example: Code computes the output and defines `actions.setSlope`, while the JSX Render function contains the matrix preview and α/β sliders. Both slopes persist in state. It is also wired to a General viewer in the Interactive blocks project. No example's Code function writes `innerHTML` or constructs DOM elements.
+
+
+Use `defineProperty(name, options)` inside either Code or Render to expose internal parameters in **Properties → Custom properties**. It returns the saved value immediately, falling back to `default` on first use. Changing a field reruns Code and updates Render. Definitions and values are saved in `data.propertyFields` and `data.parameters`, including JSON exports and My Blocks. Repeated declarations preserve the user's value; a changed definition resets a value only if it is no longer valid.
+
+```jsx
+// Code
+const gain = defineProperty('gain', {
+  type: 'number', label: 'Gain', default: 2, min: 0, max: 100, step: 0.1
+});
+emit((inputs.input1 ?? 0) * gain);
+
+// Render
+const accent = defineProperty('accent', {
+  type: 'color', label: 'Accent', default: '#1971c2'
+});
+return <strong style={{ color: accent }}>{String(state.result ?? '')}</strong>;
+```
+
+Supported types are `number` (`min`, `max`, `step`), `text`, `boolean`, `color` (six-digit hex), and `select` (`options: ['Small', 'Large']`). Every field requires `type` and `default`; `label` is optional. Names must be unique JavaScript-style identifiers per block, with up to 64 fields. Code and Render share the same names and can also read saved values through `block.parameters`. Declare fields unconditionally with stable options. Existing fields remain saved if their declaration is removed; remove both the field and its parameter in Block JSON to delete them.

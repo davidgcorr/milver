@@ -7,13 +7,13 @@ export const defaultLogic = `async function run() {
 }`;
 export const defaultRender = `function render({ state, block }) {
   // state.result comes from run(); block contains the current block properties.
-  const fontSize = 24;
+  const fontSize = defineProperty('fontSize', { type: 'number', label: 'Font size', default: 24, min: 10, max: 72 });
   return <div style={{ padding: 16, fontSize, textAlign: 'center' }}>
     <small style={{ display: 'block', fontSize: 11, opacity: 0.6 }}>{block.label}</small>
     <strong>{String(state.result ?? 'Connect an input')}</strong>
   </div>;
 }`;
-export const controlledPaths = ['label', 'description', 'value', 'width', 'height', 'visuals.background', 'visuals.foreground', 'visuals.radius', 'visuals.opacity', 'visuals.shadow', 'visuals.strokeWidth', 'visuals.strokeColor', 'visuals.showHeader', 'visuals.showLabel', 'visuals.showValue', 'visuals.showPortLabels'] as const;
+export const controlledPaths = ['label', 'description', 'value', 'width', 'height', 'visuals.background', 'visuals.foreground', 'visuals.radius', 'visuals.opacity', 'visuals.shadow', 'visuals.shadowColor', 'visuals.strokeWidth', 'visuals.strokeColor', 'visuals.showHeader', 'visuals.showLabel', 'visuals.showValue', 'visuals.showPortLabels'] as const;
 export type ControlledPath = typeof controlledPaths[number];
 export const isControlled = (data: BlockData, path: string) => data.controlledProperties?.includes(path as ControlledPath) ?? false;
 
@@ -55,7 +55,17 @@ export function buildBlockModule(logic: string, renderSource: string, renderEnab
     else void execute().catch(error => api.reportError?.(error));
   };
   const setState = patch => { const next = typeof patch === 'function' ? patch(state) : patch; Object.assign(state, next); requestRender(); };
-  const scope = () => ({ ...api.ui, element, wasm, inputs, variables, value, state, setState, block, modules, actions, emit, emitEvent, setValue, setProperty, onCleanup, render, renderer, ports });
+  const declaredProperties = new Map();
+  const defineProperty = (name, options) => {
+    if (!/^[A-Za-z_$][\\w$]{0,63}$/.test(name) || ['__proto__', 'prototype', 'constructor'].includes(name)) throw new Error('Invalid inspector property name.');
+    const definition = JSON.stringify(options);
+    if (declaredProperties.get(name) !== definition) {
+      declaredProperties.set(name, definition);
+      setProperty?.('propertyFields.' + name, options);
+    }
+    return Object.hasOwn(block.parameters ?? {}, name) ? block.parameters[name] : options.default;
+  };
+  const scope = () => ({ ...api.ui, element, wasm, inputs, variables, value, state, setState, block, modules, actions, emit, emitEvent, setValue, setProperty, defineProperty, onCleanup, render, renderer, ports });
   const View = (${drawSource});
   ${runSource}
   async function render() {

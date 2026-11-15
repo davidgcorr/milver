@@ -42,7 +42,7 @@ export function mountExport(config:ExportRuntimeConfig){
    const path=message.path as string,value=message.value;
    const limits:Record<string,[number,number]>={width:[120,2000],height:[90,2000],'visuals.opacity':[0,1],'visuals.radius':[0,60],'visuals.shadow':[0,40],'visuals.strokeWidth':[0,12]};
    if(limits[path]&&(typeof value!=='number'||!Number.isFinite(value)||value<limits[path][0]||value>limits[path][1]))return;
-   if(/visuals\.(background|foreground|strokeColor)$/.test(path)&&(typeof value!=='string'||!/^#[0-9a-f]{6}$/i.test(value)))return;
+   if(/visuals\.(background|foreground|strokeColor|shadowColor)$/.test(path)&&(typeof value!=='string'||!/^#[0-9a-f]{6}$/i.test(value)))return;
    if(path.startsWith('visuals.show')&&typeof value!=='boolean')return;
    if(['label','description','value'].includes(path)&&typeof value!=='string')return;
    const target=path.startsWith('visuals.')?(d.block.visuals??={}):d.block,key=path.split('.').at(-1)!;if(signalsEqual(target[key],value))return;target[key]=value;
@@ -50,7 +50,7 @@ export function mountExport(config:ExportRuntimeConfig){
    if(path==='visuals.foreground')d.color=String(value);if(path==='visuals.background')d.background=String(value);
    const group=document.querySelector<SVGGElement>(`[data-block="${d.frameKey}"]`),visuals=d.block.visuals??{};
    if(visuals.opacity!==undefined)record.frame.style.opacity=String(visuals.opacity);
-   if(group){if(visuals.opacity!==undefined)group.style.opacity=String(visuals.opacity);const shape=group.querySelector<SVGElement>(':scope>rect,:scope>ellipse,:scope>g[filter]>rect');if(shape){if(visuals.background)shape.setAttribute('fill',visuals.background);if(visuals.strokeColor)shape.setAttribute('stroke',visuals.strokeColor);if(visuals.strokeWidth!==undefined)shape.setAttribute('stroke-width',String(visuals.strokeWidth));if(visuals.radius!==undefined)shape.setAttribute('rx',String(visuals.radius));}}
+   if(group){const shadow=group.querySelector('feDropShadow');if(shadow&&visuals.shadowColor)shadow.setAttribute('flood-color',visuals.shadowColor);if(visuals.opacity!==undefined)group.style.opacity=String(visuals.opacity);const shape=group.querySelector<SVGElement>(':scope>rect,:scope>ellipse,:scope>g[filter]>rect');if(shape){if(visuals.background)shape.setAttribute('fill',visuals.background);if(visuals.strokeColor)shape.setAttribute('stroke',visuals.strokeColor);if(visuals.strokeWidth!==undefined)shape.setAttribute('stroke-width',String(visuals.strokeWidth));if(visuals.radius!==undefined)shape.setAttribute('rx',String(visuals.radius));}}
    send(record);
   }
  };
