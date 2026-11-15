@@ -8,7 +8,7 @@ import '../mcp/browser';
 const connectionCode=`// Browser console, injected browser agent, or same-page connector:
 const tools = window.milverMcp.tools;
 await window.milverMcp.call('milver_get_state', {});
-// Full JSON-RPC / MessagePort transport is documented in README.md.
+// Guide: ${new URL(import.meta.env.BASE_URL+'docs/browser-mcp/',location.origin).href}
 `;
 export function McpDialog({close}:{close:()=>void}){
   const [,refresh]=useState(0),[name,setName]=useState('milver_get_state'),[args,setArgs]=useState('{}'),[result,setResult]=useState(''),[busy,setBusy]=useState(false);
@@ -23,6 +23,7 @@ export function McpDialog({close}:{close:()=>void}){
     <Field label="JSON arguments"><Textarea aria-label="MCP arguments" value={args} rows={4} onChange={event=>setArgs(event.target.value)}/></Field>
     <div className="module-toolbar"><Button size="sm" disabled={busy||!api} onClick={async()=>{setBusy(true);try{const reply=await api!.call(name,JSON.parse(args));setResult(reply.content.map(item=>item.text).join('\n'));}catch(error){setResult(String(error));}finally{setBusy(false);}}}>{busy?'Running…':'Run tool'}</Button><Button size="sm" variant="outline" onClick={async()=>{try{await navigator.clipboard.writeText(connectionCode);setResult('Connection code copied.');}catch(error){setResult(String(error));}}}><Copy/>Copy connection code</Button></div>
     <pre className="mcp-output" aria-label="MCP result">{result||connectionCode}</pre>
+    <p className="field-help"><a href={import.meta.env.BASE_URL+'docs/browser-mcp/'} target="_blank" rel="noreferrer">Connection guide</a> · <a href={import.meta.env.BASE_URL+'mcp/'} target="_blank" rel="noreferrer">MCP discovery</a> · <a href={import.meta.env.BASE_URL+'mcp/connection.json'} target="_blank" rel="noreferrer">Connection JSON</a></p>
     <p className="field-help">Native WebMCP is detected on document.modelContext. Other browsers can use window.milverMcp or the same-window MessagePort bridge. Desktop MCP clients need a browser connector; this static page does not listen on /mcp. Tools can edit code and project data just like the editor.</p>
   </DialogContent></Dialog>;
 }

@@ -10,11 +10,20 @@ const resources = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)].map(match
 assert.ok(resources.length >= 3, 'Expected the application script, stylesheet and favicon');
 for (const resource of resources) {
   assert.ok(resource.startsWith(base), `Asset ${resource} does not use base ${base}`);
-  const file = resolve(output, decodeURIComponent(resource.slice(base.length)));
+  let file = resolve(output, decodeURIComponent(resource.slice(base.length)));
+  if ((await stat(file)).isDirectory()) file = resolve(file, 'index.html');
   assert.ok(file.startsWith(output + sep), `Asset escapes build directory: ${resource}`);
   assert.ok((await stat(file)).isFile(), `Missing asset: ${resource}`);
 }
 for (const resource of ['project-runtime.js', 'favicon.svg', 'THIRD_PARTY_NOTICES.txt']) {
   assert.ok((await stat(resolve(output, resource))).size > 0, `Missing public runtime asset: ${resource}`);
 }
-console.log(`Deployment assets verified for ${base}`);
+for (const resource of ['docs/browser-mcp/index.html', 'docs/browser-mcp.md', 'mcp/index.html', 'mcp/connection.json', 'llms.txt', 'llms-full.txt']) {
+  assert.ok((await stat(resolve(output, resource))).size > 0, `Missing discovery document: ${resource}`);
+}
+const connection = JSON.parse(await readFile(resolve(output, 'mcp/connection.json'), 'utf8'));
+assert.equal(connection.editor, base);
+assert.equal(connection.guide, base + 'docs/browser-mcp/');
+assert.equal(connection.httpMcpEndpoint, null);
+assert.match(await readFile(resolve(output, 'mcp/index.html'), 'utf8'), /not an HTTP MCP endpoint/);
+console.log(`Deployment assets and browser MCP discovery verified for ${base}`);

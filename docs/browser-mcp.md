@@ -8,7 +8,28 @@ There are three ways to call the same tools:
 - **JavaScript API:** a browser agent, browser console or same-page connector can call `window.milverMcp.call(name, arguments)`. This convenience API does not require a protocol handshake.
 - **MCP JSON-RPC:** a same-window connector transfers a `MessagePort`, then uses the MCP lifecycle and tools/resources methods. It implements protocol revision **2025-11-25**, using MCP's permitted [custom transport mechanism](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports).
 
-This static site does **not** expose an HTTP `/mcp` endpoint or an stdio process. An external desktop MCP client needs a browser connector that evaluates code in this tab and forwards its protocol messages to the MessagePort. The native WebMCP integration is feature-detected; the JavaScript and MessagePort APIs also work without native WebMCP.
+This static site does **not** expose an HTTP MCP transport or an stdio process. The `/mcp/` route is an informational discovery page, not a protocol endpoint. An external desktop MCP client needs a browser connector that evaluates code in this tab and forwards its protocol messages to the MessagePort. The native WebMCP integration is feature-detected; the JavaScript and MessagePort APIs also work without native WebMCP.
+
+## Public routes and AI discovery
+
+All paths below are relative to the deployed application root. On GitHub Pages, retain the repository prefix (for example `/reactflow-recipes/mcp/`). On a root deployment, use `/mcp/`. Directory routes also accept `index.html` explicitly.
+
+| Route | Purpose |
+| --- | --- |
+| `/docs/browser-mcp/` | This full guide, rendered as static HTML; no JavaScript required |
+| `/docs/browser-mcp.md` | The original Markdown guide |
+| `/mcp/` | Artificial MCP discovery route with connection instructions for AI clients |
+| `/mcp/connection.json` | Machine-readable connection descriptor, transport choices, editor URL, resources and first calls |
+| `/llms.txt` | Compact AI documentation index |
+| `/llms-full.txt` | Index plus the complete connection guide |
+
+The editor HTML advertises the guide, descriptor and AI index with link metadata. The Browser MCP dialog also links to them. These files are generated from this guide during the Vite build and are available in development, on GitHub Pages and on Cloudflare Pages. The descriptor is a **milver-specific discovery format**, not a standard MCP endpoint manifest.
+
+### Instructions for AI clients
+
+Fetch the discovery page or JSON descriptor, then open or attach to its `editor` URL in a browser. Keep that tab open and evaluate in its **main window**. Documentation pages do not mount an editor and cannot access your projects. Wait until `window.milverMcp` exists, inspect `window.milverMcp.tools` for the current schemas, and start with `milver_get_state` and `milver_get_catalog`.
+
+If you have JSON-RPC MCP support plus a browser connector, relay requests through the MessagePort example below. If you can only supply a remote HTTP MCP URL, these documentation routes cannot provide a connection: use a browser connector or a native WebMCP-capable browser agent. Do not send MCP `initialize` or `tools/call` POSTs to `/mcp/`; it serves discovery documentation only. Unsupported HTTP methods are handled by the static hosting platform, not by an MCP server.
 
 ## Quick start
 
