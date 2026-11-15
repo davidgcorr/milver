@@ -317,3 +317,6 @@ In **Render → Appearance**, width, height and corner radius pair a slider with
 
 
 The deployed site publishes **`/docs/browser-mcp/`** (full connection guide), **`/mcp/`** (AI connection discovery), **`/mcp/connection.json`** (machine-readable instructions), and **`/llms.txt`** / **`/llms-full.txt`**. Keep any deployment base prefix when using these paths. The guide and discovery pages are static HTML readable without JavaScript. `/mcp/` is informational, not a Streamable HTTP endpoint; it directs clients to the browser connection methods. These documents are generated from [the connection guide](docs/browser-mcp.md) by the Vite build and are served in development too.
+
+
+MCP clients can retrieve generated project HTML directly with `milver_export({format: "html", download: false})` through the tools API. Read `structuredContent.text` (or `result.structuredContent.text` over JSON-RPC) for the complete HTML, with `filename` and `mimeType` alongside it. HTML defaults to the entire project including nested canvases; use `options.scope: "current"` for one canvas. This produces the standalone diagram viewer; executable block definitions remain in JSON exports.

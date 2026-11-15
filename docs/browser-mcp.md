@@ -53,6 +53,26 @@ await mcp.call('milver_get_project', {});
 
 Results contain MCP `content` text and `structuredContent`. Arrays/scalars are wrapped as `{result: ...}` in structured content. Check `isError` before using a result. Infinity uses the project's portable `{ "$number": "Infinity" }` representation. Input schemas are available in `mcp.tools`.
 
+## Retrieve generated project HTML
+
+Use `milver_export` with `format: "html"` and omit `download` (or set it to `false`). The complete HTML is returned directly in `structuredContent.text`; no download, browser filesystem access or follow-up fetch is needed. HTML defaults to the entire project, including nested parent canvases.
+
+```js
+const reply = await window.milverMcp.call('milver_export', {
+  format: 'html',
+  download: false,
+  options: { scope: 'system' }
+});
+if (reply.isError) throw new Error(reply.content[0].text);
+const { text: html, filename, mimeType } = reply.structuredContent;
+// html is the complete <!doctype html> document, ready to save or return to the user.
+// filename is the suggested .html filename; mimeType is text/html;charset=utf-8.
+```
+
+Over MCP JSON-RPC, send `tools/call` with `params: { name: "milver_export", arguments: { format: "html", download: false } }` and read `response.result.structuredContent.text`. Clients using only MCP text content can parse `response.result.content[0].text` as JSON and read its `text` field. The AI client should return or save that HTML as the requested project artifact. Set `options.scope: "current"` and optionally `path: ["parent-id"]` to retrieve only one canvas. `download: true` starts a local browser download instead of returning the HTML source.
+
+The HTML artifact is the existing standalone diagram viewer with pan, zoom and navigation into nested canvases. Programmable block visuals use static representations; exported HTML does not execute the project's JavaScript block runtime. Retrieve `format: "json"` as well when the user needs the full editable/executable project definition.
+
 ## MessagePort connector
 
 ```js

@@ -60,3 +60,20 @@ it('registers the same tools with native document.modelContext and aborts regist
  const registrations:any[]=[];const registerTool=vi.fn(async(tool,options)=>{registrations.push({tool,options});});Object.defineProperty(document,'modelContext',{value:{registerTool},configurable:true});
  try{await workspace(async()=>{await act(async()=>new Promise(resolve=>setTimeout(resolve,0)));expect(registerTool).toHaveBeenCalledTimes(window.milverMcp!.tools.length);const native=registrations.find(r=>r.tool.name==='milver_get_project');expect((await native.tool.execute({})).structuredContent.name).toBe('MCP test');expect(native.options.signal.aborted).toBe(false);});expect(registrations.every(r=>r.options.signal.aborted)).toBe(true);}finally{delete (document as any).modelContext;}
 });
+
+it('returns complete project HTML to MCP clients without a browser download and allows current-canvas export',async()=>workspace(async()=>{
+ const download=vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(()=>{});
+ await call('create_block',{kind:'subsystem',id:'parent',data:{label:'Nested HTML project'}});
+ await call('navigate',{path:['parent']});
+ await call('create_block',{recipe:'DOM',id:'child',data:{label:'HTML child marker'}});
+ await call('navigate',{path:[]});
+ const artifact=await call('export',{format:'html'});
+ expect(artifact.filename).toBe('mcp-test.html');expect(artifact.mimeType).toBe('text/html;charset=utf-8');
+ expect(artifact.text).toMatch(/^<!doctype html>/);expect(artifact.text).toContain('HTML child marker');expect(artifact.text).toContain('data-page="1"');expect(artifact.text).toContain('id="viewport"');expect(download).not.toHaveBeenCalled();
+ const current=await call('export',{format:'html',options:{scope:'current'}});expect(current.text).not.toContain('HTML child marker');
+ const api=window.milverMcp!;
+ await api.request({jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-11-25',clientInfo:{name:'html-client',version:'1'},capabilities:{}}});
+ await api.request({jsonrpc:'2.0',method:'notifications/initialized'});
+ const response=await api.request({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'milver_export',arguments:{format:'html',download:false}}});
+ expect(response.result.structuredContent.text).toBe(artifact.text);expect(JSON.parse(response.result.content[0].text).text).toBe(artifact.text);
+}));
