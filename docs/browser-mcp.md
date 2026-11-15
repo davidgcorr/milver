@@ -71,7 +71,7 @@ const { text: html, filename, mimeType } = reply.structuredContent;
 
 Over MCP JSON-RPC, send `tools/call` with `params: { name: "milver_export", arguments: { format: "html", download: false } }` and read `response.result.structuredContent.text`. Clients using only MCP text content can parse `response.result.content[0].text` as JSON and read its `text` field. The AI client should return or save that HTML as the requested project artifact. Set `options.scope: "current"` and optionally `path: ["parent-id"]` to retrieve only one canvas. `download: true` starts a local browser download instead of returning the HTML source.
 
-The HTML artifact is the existing standalone diagram viewer with pan, zoom and navigation into nested canvases. Programmable block visuals use static representations; exported HTML does not execute the project's JavaScript block runtime. Retrieve `format: "json"` as well when the user needs the full editable/executable project definition.
+The HTML artifact is a standalone viewer with pan, zoom and navigation into nested canvases. It runs saved JavaScript Code and JSX Render functions in opaque sandboxed frames, preserving connected inputs, state, source controls and imported libraries. React, UI components, the computation runtime and built-in math are packaged into the HTML. URL-imported libraries and remote iframe pages still require network access and permission to embed. When embedding the exported HTML with a sandbox attribute, allow scripts (for example `<iframe src="project.html" sandbox="allow-scripts"></iframe>`). SVG, PNG and GIF remain static publications. Retrieve `format: "json"` as well when the user needs the full editable project definition.
 
 ## MessagePort connector
 
@@ -129,7 +129,7 @@ All persisted state is reachable through complete project/canvas reads and repla
 | Every rendered page/block control, file imports, editors | `ui` |
 | Download or retrieve JSON/SVG/HTML/PNG/GIF | `export` |
 
-Paths are arrays of parent block IDs, defaulting to the active canvas. `get_catalog` lists recipes and example IDs. Saved project management affects only this browser's local storage. `get_project` and JSON export preserve the complete document, including executable functions, libraries, nested parents and styles; publication exports retain their existing static mask representation.
+Paths are arrays of parent block IDs, defaulting to the active canvas. `get_catalog` lists recipes and example IDs. Saved project management affects only this browser's local storage. `get_project` and JSON export preserve the complete document, including executable functions, libraries, nested parents and styles; HTML exports execute the saved render functions, while SVG/PNG/GIF retain static mask representations.
 
 For UI actions, list controls first and use the returned selector. Selectors remain valid while the control is mounted. CodeMirror `fill` edits its draft through the editor API; **Apply code/render** commits it, just as in the UI. Use `ui` with `frame: '<block-id>'` to inspect/click/type in a mounted block renderer. `block_action` can invoke asynchronous functions exposed through `actions` in Code or inspect live inputs, state and available actions. Navigate to a block's canvas before controlling it. Embedded third-party iframe interiors retain normal browser isolation; use the block's inputs and message protocol to control those pages.
 

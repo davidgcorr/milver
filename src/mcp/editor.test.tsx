@@ -70,7 +70,7 @@ it('returns complete project HTML to MCP clients without a browser download and 
  const artifact=await call('export',{format:'html'});
  expect(artifact.filename).toBe('mcp-test.html');expect(artifact.mimeType).toBe('text/html;charset=utf-8');
  expect(artifact.text).toMatch(/^<!doctype html>/);expect(artifact.text).toContain('HTML child marker');expect(artifact.text).toContain('data-page="1"');expect(artifact.text).toContain('id="viewport"');expect(download).not.toHaveBeenCalled();
- const current=await call('export',{format:'html',options:{scope:'current'}});expect(current.text).not.toContain('HTML child marker');
+ const current=await call('export',{format:'html',options:{scope:'current'}});expect(current.text.match(/<main[\s\S]*?<\/main>/)![0]).not.toContain('HTML child marker');
  const api=window.milverMcp!;
  await api.request({jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-11-25',clientInfo:{name:'html-client',version:'1'},capabilities:{}}});
  await api.request({jsonrpc:'2.0',method:'notifications/initialized'});

@@ -1,10 +1,13 @@
+import {stringifySignal} from '../signal-json';
+import {liveConfig} from './live-config';
 import type { Diagram } from '../model';
 import license from '../../THIRD_PARTY_NOTICES.txt?raw';
 import { buildScene, collectPages, escapeXml, safeJson, sceneSvg, type ExportOptions } from './scene';
 
-export function exportHtml(diagram: Diagram, path: string[], options: ExportOptions): string {
+export async function exportHtml(diagram: Diagram, path: string[], options: ExportOptions): Promise<string> {
   const pages = collectPages(diagram, path, options.scope);
-  const scenes = pages.map(page => buildScene(diagram, [page], { ...options, title: false }, false));
+  const live = await liveConfig(diagram,pages);
+  const scenes = pages.map(page => buildScene(diagram, [page], { ...options, title: false }, false, !!live));
   // Links use numeric page IDs, never user-provided strings or executable attributes.
   const markup = pages.map((page, i) => {
     const scene = scenes[i];
@@ -22,6 +25,7 @@ export function exportHtml(diagram: Diagram, path: string[], options: ExportOpti
     return `<section class="sheet" data-page="${i}"${i ? ' hidden' : ''}>${svg}</section>`;
   }).join('');
   const p = scenes[0].palette;
+  if(live)for(const block of live.config.blocks)block.color ||= p.primary;
   const metadata = pages.map((page, i) => ({ title: page.title, parent: page.parent, width: scenes[i].width, height: scenes[i].height }));
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="${diagram.theme?.mode ?? 'light'}"><meta name="generator" content="milver"><title>${escapeXml(pages[0].title)}</title>
@@ -31,6 +35,8 @@ export function exportHtml(diagram: Diagram, path: string[], options: ExportOpti
 </style></head><body>
 <nav class="bar" aria-label="Diagram navigation"><div class="crumbs" id="crumbs"></div><div class="tools"><button id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button><output id="zoom" aria-live="polite">100%</output><button id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button><button id="fit" aria-label="Fit diagram" title="Fit diagram">⛶</button></div></nav>
 <main id="viewport" aria-label="Diagram viewer">${markup}</main><div class="hint">Drag to pan · Scroll to zoom${pages.length > 1 ? ' · Double-click a parent to enter' : ''}</div>
+${live ? `<script id="export-runtime" type="application/json">${safeJson(JSON.parse(stringifySignal(live.config)))}</script><script>${live.runtime.replace(/<\/script/gi, '<'+String.fromCharCode(92)+'/script')}
+MilverExport.startExport();</script>` : ''}
 <script id="pages" type="application/json">${safeJson(metadata)}</script>
 <script>
 (()=>{'use strict';const pages=JSON.parse(document.getElementById('pages').textContent),viewport=document.getElementById('viewport'),sheets=[...document.querySelectorAll('.sheet')],crumbs=document.getElementById('crumbs'),zoom=document.getElementById('zoom');let current=0,x=0,y=0,scale=1,drag=null,moved=false;const saved=new Map();

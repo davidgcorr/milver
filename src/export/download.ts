@@ -68,7 +68,7 @@ export async function createExport(diagram: Diagram, path: string[], format: Exp
   const pages = collectPages(diagram, path, options.scope);
   const scene = buildScene(diagram, pages, options);
   let blob: Blob;
-  if (format === 'html') blob = new Blob([exportHtml(diagram, path, options)], { type: 'text/html;charset=utf-8' });
+  if (format === 'html') blob = new Blob([await exportHtml(diagram, path, options)], { type: 'text/html;charset=utf-8' });
   else if (format === 'svg') blob = new Blob([sceneSvg(scene, options)], { type: 'image/svg+xml;charset=utf-8' });
   else if (format === 'png') blob = await renderPng(scene, options);
   else blob = await renderGif(scene, options, onProgress);

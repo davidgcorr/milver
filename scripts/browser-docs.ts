@@ -55,7 +55,7 @@ export function browserDocs(base: string, guide: string): Record<string,{type:st
     ],
     resources:['milver://project/current','milver://editor/state','milver://editor/tools'],
     capabilities:['tools/list','tools/call','resources/list','resources/read'],
-    projectHtml:{tool:'milver_export',arguments:{format:'html',download:false,options:{scope:'system'}},responseField:'structuredContent.text',jsonRpcResponseField:'result.structuredContent.text',description:'Complete standalone HTML diagram viewer returned inline with filename and mimeType. Static block masks; does not execute JavaScript blocks.',guideSection:url('docs/browser-mcp/#retrieve-generated-project-html')},
+    projectHtml:{tool:'milver_export',arguments:{format:'html',download:false,options:{scope:'system'}},responseField:'structuredContent.text',jsonRpcResponseField:'result.structuredContent.text',description:'Complete standalone HTML viewer returned inline with filename and mimeType. Runs saved JSX render functions and connected block logic in sandboxed frames; URL libraries require network access.',guideSection:url('docs/browser-mcp/#retrieve-generated-project-html')},
     firstCalls:[{name:'milver_get_state',arguments:{}},{name:'milver_get_catalog',arguments:{}}]
   };
   const nav=`<nav aria-label="Documentation"><a class="brand" href="${url('')}">▢ milver</a><a href="${url('docs/browser-mcp/')}">Connection guide</a><a href="${url('mcp/')}">MCP discovery</a><a href="${url('mcp/connection.json')}">Connection JSON</a><a href="${url('llms.txt')}">llms.txt</a></nav>`;

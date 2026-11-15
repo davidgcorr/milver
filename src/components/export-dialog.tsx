@@ -17,7 +17,7 @@ const formats = [
   { id: 'png', name: 'PNG', icon: Image, description: 'High-resolution image' },
   { id: 'svg', name: 'SVG', icon: FileImage, description: 'Scalable vector image' },
   { id: 'gif', name: 'GIF', icon: Film, description: 'Looping connection animation' },
-  { id: 'html', name: 'HTML', icon: Code2, description: 'Self-contained interactive viewer' },
+  { id: 'html', name: 'HTML', icon: Code2, description: 'Live JavaScript / JSX block viewer' },
   { id: 'json', name: 'JSON', icon: Braces, description: 'Editable diagram source' },
 ] as const;
 export function ExportDialog({ open, onOpenChange, diagram, path, notify }: { open: boolean; onOpenChange: (open: boolean) => void; diagram: Diagram; path: string[]; notify: (message: string) => void }) {
@@ -38,9 +38,13 @@ export function ExportDialog({ open, onOpenChange, diagram, path, notify }: { op
   const supportsTransparency = format === 'png' || format === 'svg';
   useEffect(() => {
     if (!prepared.scene) { setPreview(''); return; }
-    const url = URL.createObjectURL(new Blob([sceneSvg(prepared.scene, { ...options, transparent: supportsTransparency && options.transparent })], { type: 'image/svg+xml;charset=utf-8' }));
-    setPreview(url); return () => URL.revokeObjectURL(url);
-  }, [prepared.scene, options, supportsTransparency]);
+    let active=true,url:string|undefined;
+    setPreview('');
+    const publish=(blob:Blob)=>{if(!active)return;url=URL.createObjectURL(blob);setPreview(url);};
+    if(format==='html')void createExport(diagram,path,'html',options).then(result=>publish(result.blob)).catch(error=>{if(active)setError(String(error));});
+    else publish(new Blob([sceneSvg(prepared.scene, { ...options, transparent: supportsTransparency && options.transparent })], { type: 'image/svg+xml;charset=utf-8' }));
+    return () => { active=false;if(url)URL.revokeObjectURL(url); };
+  }, [prepared.scene, options, supportsTransparency, format]);
   const pixels = prepared.scene ? rasterSize(prepared.scene, options.width, format === 'gif' ? 'gif' : 'png') : null;
   const download = async () => {
     setBusy(true); setError(''); setProgress(0); setLastDownload('');
@@ -54,7 +58,7 @@ export function ExportDialog({ open, onOpenChange, diagram, path, notify }: { op
   return <Dialog open={open} onOpenChange={value => { if (!busy) onOpenChange(value); }}><DialogContent className="export-dialog" onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onInteractOutside={event => { if (busy) event.preventDefault(); }}>
     <DialogHeader><DialogTitle className="dialog-title"><Download/>Export diagram</DialogTitle><DialogDescription>Publish your diagram as an image or an interactive page. Editor controls are excluded.</DialogDescription></DialogHeader>
     <div className="export-formats" role="group" aria-label="Export format">{formats.map(f => <Button key={f.id} variant={format === f.id ? 'secondary' : 'ghost'} aria-pressed={format === f.id} disabled={busy} onClick={() => { setFormat(f.id); setOptions(o => ({ ...o, ...(f.id === 'gif' ? { width: Math.min(o.width, 1600) } : {}), ...(f.id === 'html' ? { scope: 'system' } : {}) })); setError(''); setLastDownload(''); }}><f.icon/>{f.name}</Button>)}</div>
-    <div className="export-layout"><div className="export-preview"><div className={supportsTransparency && options.transparent ? 'export-image checkerboard' : 'export-image'}>{preview && <img src={preview} alt="Diagram export preview"/>}{!preview && <span>Preview unavailable</span>}</div><div className="export-preview-caption"><span>{formats.find(f => f.id === format)?.description}</span>{format === 'png' || format === 'gif' ? <Badge variant="outline">{pixels?.width ?? 0} × {pixels?.height ?? 0}</Badge> : <Badge variant="outline">{format === 'svg' ? 'Vector' : format === 'html' ? 'Offline-ready' : 'Version 1'}</Badge>}</div></div>
+    <div className="export-layout"><div className="export-preview"><div className={supportsTransparency && options.transparent ? 'export-image checkerboard' : 'export-image'}>{preview && (format==='html'?<iframe src={preview} title="Live HTML export preview" sandbox="allow-scripts" style={{width:'100%',height:'100%',minHeight:260,border:0}}/>:<img src={preview} alt="Diagram export preview"/>)}{!preview && <span>Preview unavailable</span>}</div><div className="export-preview-caption"><span>{formats.find(f => f.id === format)?.description}</span>{format === 'png' || format === 'gif' ? <Badge variant="outline">{pixels?.width ?? 0} × {pixels?.height ?? 0}</Badge> : <Badge variant="outline">{format === 'svg' ? 'Vector' : format === 'html' ? 'Offline-ready' : 'Version 1'}</Badge>}</div></div>
       <div className="export-options">
         <Field label="Content"><Select value={options.scope} onValueChange={scope => { setOptions(o => ({ ...o, scope: scope as 'current' | 'system' })); setLastDownload(''); }} disabled={busy || format === 'json'}><SelectTrigger aria-label="Export content" className="w-full"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="current">Current canvas</SelectItem><SelectItem value="system">Entire system</SelectItem></SelectContent></Select></Field>
         <p className="export-note">{format === 'json' ? 'JSON always includes the entire editable system and its theme.' : options.scope === 'system' ? format === 'html' ? 'Includes all nested canvases. Double-click parent blocks to navigate.' : `${prepared.pages.length} canvases, arranged as labeled sheets in one image.` : 'Includes every block in this canvas, even those outside your current view.'}</p>

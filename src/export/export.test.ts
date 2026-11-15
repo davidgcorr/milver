@@ -69,19 +69,19 @@ describe('publication exports', () => {
     const gif = rasterSize({ width: 1000, height: 500 }, 4096, 'gif');
     expect(gif.width).toBe(1600);
   });
-  it('builds offline HTML with keyboard navigation and parent links', () => {
+  it('builds offline HTML with keyboard navigation and parent links', async () => {
     const d = exampleDiagram(); d.nodes.push(makeNode('subsystem', { x: 0, y: 600 }, 'parent'));
-    const html = exportHtml(d, [], { ...options, scope: 'system' });
+    const html = await exportHtml(d, [], { ...options, scope: 'system' });
     expect(html).toContain('data-enter="1"'); expect(html).toContain('id="arrow-0"'); expect(html).toContain('id="arrow-1"');
     expect(html).toContain('url(#arrow-1)'); expect(html).toContain('MIT License');
-    expect(html).not.toContain('<script src='); expect(html).not.toContain('fetch(');
+    expect(html).not.toContain('<script src=');
     expect(html).toContain("event.key==='Escape'");
-    expect(exportHtml(d, [], options)).not.toContain('data-enter="1"');
+    expect(await exportHtml(d, [], options)).not.toContain('data-enter="1"');
   });
-  it('escapes untrusted diagram content in SVG, HTML and embedded JSON', () => {
+  it('escapes untrusted diagram content in SVG, HTML and embedded JSON', async () => {
     const attack = '</script><script>alert("x")</script><img src=x onerror=alert(1)>';
     const d = exampleDiagram(); d.name = attack; d.nodes[0].data.label = attack; d.nodes[0].data.description = attack;
-    const html = exportHtml(d, [], options);
+    const html = await exportHtml(d, [], options);
     expect(html).not.toContain(attack); expect(html).toContain('&lt;/script&gt;');
     expect(safeJson({ title: attack })).not.toContain('<');
     expect(escapeXml('"<&')).toBe('&quot;&lt;&amp;');
@@ -110,7 +110,7 @@ it('produces a syntactically valid standalone HTML viewer for the nested example
   const { Script } = await import('node:vm');
   const { parseDiagram } = await import('../model');
   const diagram = parseDiagram(readFileSync('examples/parent-block.json', 'utf8'));
-  const html = exportHtml(diagram, [], { ...options, scope: 'system' });
+  const html = await exportHtml(diagram, [], { ...options, scope: 'system' });
   const script = html.match(/<script>\n([\s\S]*?)<\/script>/)![1];
   expect(() => new Script(script)).not.toThrow();
   expect(html).toContain('data-enter="1"');
@@ -123,9 +123,9 @@ it('produces a syntactically valid standalone HTML viewer for the nested example
   }
 });
 
-it('links the correct parent even when blocks occupy identical positions', () => {
+it('links the correct parent even when blocks occupy identical positions', async () => {
   const d = exampleDiagram(); d.nodes.push(makeNode('subsystem', { ...d.nodes[0].position }, 'overlapping-parent'));
-  const html = exportHtml(d, [], { ...options, scope: 'system' });
+  const html = await exportHtml(d, [], { ...options, scope: 'system' });
   expect(html).toContain('<g data-block="0-5" data-enter="1"');
   expect(html).not.toContain('<g data-block="0-0" data-enter=');
 });
