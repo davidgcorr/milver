@@ -358,3 +358,5 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 
 .mcp-dialog{width:min(700px,calc(100vw - 32px));max-width:700px;max-height:90vh;overflow:auto}
 .mcp-output{max-height:260px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--border);border-radius:6px;padding:10px;font:11px ui-monospace,monospace;background:var(--muted)}
+
+.function-disabled{color:var(--muted-foreground);background:color-mix(in srgb,var(--muted) 55%,transparent)}.function-disabled .source-editor{opacity:.55;filter:grayscale(1)}.function-disabled .source-editor .cm-content{cursor:default}

@@ -42,10 +42,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render() {\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
+        "state": {},
         "recipe": "Slider",
-        "render": "function render() {\n  // React scope: inputs, state, block, modules; run() controls outputs.\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
-        "state": {}
+        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -72,10 +73,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Array.isArray(config.options) || !config.options.length || config.options.some(v => !['string', 'number', 'boolean'].includes(typeof v))) throw new Error('Provide nonempty scalar options.');\n  state.selected = Math.max(0, Math.min(config.options.length - 1, config.selected ?? 0));\n  emit(config.options[state.selected]);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render() {\n  // state.config.options: scalar choices; state.selected: selected zero-based index.\n  // Customize the shadcn SelectTrigger, SelectItem or surrounding layout.\n  return <Select value={String(state.selected)} onValueChange={selected => setValue(JSON.stringify({ ...state.config, selected: Number(selected) }))}>\n    <SelectTrigger aria-label=\"Source selector\"><SelectValue/></SelectTrigger>\n    <SelectContent position=\"popper\">{state.config.options.map((option, index) =>\n      <SelectItem key={index} value={String(index)}>{String(option)}</SelectItem>\n    )}</SelectContent>\n  </Select>;\n}",
+        "state": {},
         "recipe": "Selector",
-        "render": "function render() {\n  // React scope: inputs, state, block, modules; run() controls outputs.\n  // state.config.options: scalar choices; state.selected: selected zero-based index.\n  // Customize the shadcn SelectTrigger, SelectItem or surrounding layout.\n  return <Select value={String(state.selected)} onValueChange={selected => setValue(JSON.stringify({ ...state.config, selected: Number(selected) }))}>\n    <SelectTrigger aria-label=\"Source selector\"><SelectValue/></SelectTrigger>\n    <SelectContent position=\"popper\">{state.config.options.map((option, index) =>\n      <SelectItem key={index} value={String(index)}>{String(option)}</SelectItem>\n    )}</SelectContent>\n  </Select>;\n}",
-        "state": {}
+        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Array.isArray(config.options) || !config.options.length || config.options.some(v => !['string', 'number', 'boolean'].includes(typeof v))) throw new Error('Provide nonempty scalar options.');\n  state.selected = Math.max(0, Math.min(config.options.length - 1, config.selected ?? 0));\n  emit(config.options[state.selected]);\n  await render();\n}"
       }
     },
     {
@@ -102,10 +104,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  // value: multiline text, preserved exactly, including whitespace.\n  if (value.length > 10000) throw new Error('Text sources support up to 10,000 characters.');\n  state.text = value;\n  emit(value);\n  await render();\n}",
-        "recipe": "Text",
+        "renderEnabled": true,
         "render": "function render() {\n  // state.text: source text. Change typography or replace this preview with JSX.\n  return <pre style={{margin:0,padding:14,font:'14px system-ui',whiteSpace:'pre-wrap',overflowWrap:'anywhere',maxHeight:'100%',overflow:'auto'}}>{state.text}</pre>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Text",
+        "module": "async function run() {\n  // value: multiline text, preserved exactly, including whitespace.\n  if (value.length > 10000) throw new Error('Text sources support up to 10,000 characters.');\n  state.text = value;\n  emit(value);\n  await render();\n}"
       }
     },
     {
@@ -132,10 +135,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.enabled ??= true;\n  actions.toggle = () => { state.enabled = !state.enabled; emit(state.enabled); };\n  emit(state.enabled);\n}",
-        "recipe": "Toggle",
+        "renderEnabled": true,
         "render": "function render({ state, actions }) {\n  return <Button variant={state.enabled?'default':'outline'} onClick={actions.toggle}>\n    {state.enabled ? 'Enabled' : 'Disabled'}\n  </Button>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Toggle",
+        "module": "async function run() {\n  state.enabled ??= true;\n  actions.toggle = () => { state.enabled = !state.enabled; emit(state.enabled); };\n  emit(state.enabled);\n}"
       }
     },
     {
@@ -162,10 +166,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render() {\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
+        "state": {},
         "recipe": "Slider",
-        "render": "function render() {\n  // React scope: inputs, state, block, modules; run() controls outputs.\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
-        "state": {}
+        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -192,10 +197,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render() {\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
+        "state": {},
         "recipe": "Slider",
-        "render": "function render() {\n  // React scope: inputs, state, block, modules; run() controls outputs.\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
-        "state": {}
+        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -236,10 +242,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.result = Number(inputs.input1 ?? value);\n  emit(state.result);\n}",
-        "recipe": "MetricCard",
+        "renderEnabled": true,
         "render": "function render({ state, inputs, block }) {\n  // Hooks keep local UI state; state.result is the saved value computed in run().\n  const [details, showDetails] = useState(false);\n  const color = inputs.input2 ?? '#0ea5e9';\n  return <div onClick={() => showDetails(!details)} style={{padding:18,width:'100%',borderRadius:14,background:color+'18',border:'1px solid '+color+'55'}}>\n    <small style={{color}}>{block.label}</small>\n    <div style={{fontSize:36,fontWeight:600,color}}>{state.result}</div>\n    {details && <small>{block.width} × {block.height} · {block.ports.length} ports</small>}\n  </div>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "MetricCard",
+        "module": "async function run() {\n  state.result = Number(inputs.input1 ?? value);\n  emit(state.result);\n}"
       }
     },
     {
@@ -280,10 +287,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  const maximum = Math.max(1,Number(inputs.input2 ?? value));\n  state.percent = Math.max(0,Math.min(100,Number(inputs.input1 ?? 25) / maximum * 100));\n  emit(state.percent);\n}",
-        "recipe": "ProgressRing",
+        "renderEnabled": true,
         "render": "function render({ state, block }) {\n  // state.percent: 0–100. All geometry and styling are ordinary JSX.\n  const color = block.visuals?.foreground ?? '#8b5cf6';\n  return <svg viewBox=\"0 0 120 120\" height=\"100%\" role=\"img\" aria-label={Math.round(state.percent)+'%'}>\n    <circle cx=\"60\" cy=\"60\" r=\"46\" fill=\"none\" stroke={color+'22'} strokeWidth=\"10\"/>\n    <circle cx=\"60\" cy=\"60\" r=\"46\" fill=\"none\" stroke={color} strokeWidth=\"10\" strokeLinecap=\"round\" pathLength=\"100\" strokeDasharray={state.percent+' 100'} transform=\"rotate(-90 60 60)\" style={{transition:'stroke-dasharray .3s'}}/>\n    <text x=\"60\" y=\"66\" textAnchor=\"middle\" fill={color} fontSize=\"22\">{Math.round(state.percent)}%</text>\n  </svg>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "ProgressRing",
+        "module": "async function run() {\n  const maximum = Math.max(1,Number(inputs.input2 ?? value));\n  state.percent = Math.max(0,Math.min(100,Number(inputs.input1 ?? 25) / maximum * 100));\n  emit(state.percent);\n}"
       }
     },
     {
@@ -331,10 +339,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  const title = String(inputs.input1 ?? 'Input-driven block');\n  const color = String(inputs.input2 ?? '#e0f2fe');\n  const width = Math.max(160,Math.min(500,Number(inputs.input3 ?? 240)));\n  setProperty('label',title);\n  setProperty('visuals.background',color);\n  setProperty('width',width);\n  state.result = title;\n  emit(title);\n}",
-        "recipe": "InputAppearance",
+        "renderEnabled": true,
         "render": "function render({ block }) {\n  // block is the live inspector model. Code controls its title, background and width.\n  return <div style={{padding:16,textAlign:'center'}}>\n    <strong style={{fontSize:20}}>{block.label}</strong>\n    <p style={{fontSize:11,opacity:.6}}>{block.width}px wide · controlled by inputs</p>\n  </div>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "InputAppearance",
+        "module": "async function run() {\n  const title = String(inputs.input1 ?? 'Input-driven block');\n  const color = String(inputs.input2 ?? '#e0f2fe');\n  const width = Math.max(160,Math.min(500,Number(inputs.input3 ?? 240)));\n  setProperty('label',title);\n  setProperty('visuals.background',color);\n  setProperty('width',width);\n  state.result = title;\n  emit(title);\n}"
       }
     },
     {
@@ -375,10 +384,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.enabled = Boolean(inputs.input1 ?? true);\n  state.payload = inputs.input2 ?? 'hello';\n  state.clicks ??= 0;\n  emit({ clicks:state.clicks, payload:state.payload });\n  actions.click = () => {\n    if (!state.enabled) return;\n    state.clicks++;\n    emit({ clicks:state.clicks, payload:state.payload });\n  };\n}",
-        "recipe": "ActionButton",
+        "renderEnabled": true,
         "render": "function render({ state, actions }) {\n  // run() defines actions.click; its state updates repaint this component automatically.\n  return <Button disabled={!state.enabled} onClick={actions.click} variant=\"outline\">\n    {state.enabled ? 'Send value' : 'Disabled by input'} · {state.clicks}\n  </Button>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "ActionButton",
+        "module": "async function run() {\n  state.enabled = Boolean(inputs.input1 ?? true);\n  state.payload = inputs.input2 ?? 'hello';\n  state.clicks ??= 0;\n  emit({ clicks:state.clicks, payload:state.payload });\n  actions.click = () => {\n    if (!state.enabled) return;\n    state.clicks++;\n    emit({ clicks:state.clicks, payload:state.payload });\n  };\n}"
       }
     },
     {
@@ -419,10 +429,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.enabled = Boolean(inputs.input1 ?? true);\n  state.phase ??= 0;\n  emit(state.phase);\n  if (state.enabled) {\n    const period = Math.max(80,Number(inputs.input2 ?? value));\n    const timer = setInterval(() => { state.phase++; emit(state.phase); },period);\n    onCleanup(() => clearInterval(timer));\n  }\n}",
-        "recipe": "Pulse",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // Timer state updates repaint automatically; no manual render() calls are needed.\n  const bright = state.enabled && state.phase % 2 === 0;\n  return <div style={{width:52,height:52,borderRadius:'50%',background:bright?'#10b981':'#d1d5db',boxShadow:bright?'0 0 28px #10b98188':'none',transform:bright?'scale(1.15)':'scale(.9)',transition:'all .2s'}}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Pulse",
+        "module": "async function run() {\n  state.enabled = Boolean(inputs.input1 ?? true);\n  state.phase ??= 0;\n  emit(state.phase);\n  if (state.enabled) {\n    const period = Math.max(80,Number(inputs.input2 ?? value));\n    const timer = setInterval(() => { state.phase++; emit(state.phase); },period);\n    onCleanup(() => clearInterval(timer));\n  }\n}"
       }
     },
     {
@@ -456,10 +467,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  state.result = Number(inputs.input1 ?? value);\n  state.formatted = modules.demo.format(state.result);\n  emit(state.result);\n}",
-        "recipe": "LibraryBadge",
+        "renderEnabled": true,
         "render": "function render({ state, modules }) {\n  // The same imported project library is available in code and in this component.\n  const color = modules.demo.colorFor(state.result);\n  return <span style={{padding:'12px 18px',borderRadius:999,background:color+'22',color,fontSize:26,fontWeight:600}}>{state.formatted}</span>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "LibraryBadge",
+        "module": "async function run() {\n  state.result = Number(inputs.input1 ?? value);\n  state.formatted = modules.demo.format(state.result);\n  emit(state.result);\n}"
       }
     },
     {
@@ -486,10 +498,11 @@
             "variable": "input1"
           }
         ],
-        "module": "async function run() {\n  // Inspect any JSON-compatible JavaScript value, including project object previews.\n  state.result = inputs.input1 ?? null;\n  await render();\n}",
-        "recipe": "GeneralView",
+        "renderEnabled": true,
         "render": "function render() {\n  // state.result: the value received on input1 (objects, arrays, strings or scalars).\n  // Tune the font size and JSON indentation here; non-finite numbers stay visible.\n  const fontSize = 12;\n  const value = state.result;\n  const type = value === null ? 'null' : Array.isArray(value) ? 'Array · ' + value.length : typeof value;\n  const formatted = JSON.stringify(value, (_key, item) => typeof item === 'number' && !Number.isFinite(item) ? String(item) : item, 2);\n  return <div style={{padding:12,width:'100%',height:'100%',boxSizing:'border-box',overflow:'auto',fontFamily:'ui-monospace,monospace'}}>\n    <div style={{fontSize:10,color:'#737373',marginBottom:8}}>{type}</div>\n    <pre style={{fontSize,margin:0,whiteSpace:'pre-wrap',overflowWrap:'anywhere',textAlign:'left'}}>{formatted ?? 'undefined'}</pre>\n  </div>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "GeneralView",
+        "module": "async function run() {\n  // Inspect any JSON-compatible JavaScript value, including project object previews.\n  state.result = inputs.input1 ?? null;\n  await render();\n}"
       }
     },
     {
@@ -516,10 +529,80 @@
             "variable": "input1"
           }
         ],
-        "module": "async function run() {\n  // Inspect any JSON-compatible JavaScript value, including project object previews.\n  state.result = inputs.input1 ?? null;\n  await render();\n}",
-        "recipe": "GeneralView",
+        "renderEnabled": true,
         "render": "function render() {\n  // state.result: the value received on input1 (objects, arrays, strings or scalars).\n  // Tune the font size and JSON indentation here; non-finite numbers stay visible.\n  const fontSize = 12;\n  const value = state.result;\n  const type = value === null ? 'null' : Array.isArray(value) ? 'Array · ' + value.length : typeof value;\n  const formatted = JSON.stringify(value, (_key, item) => typeof item === 'number' && !Number.isFinite(item) ? String(item) : item, 2);\n  return <div style={{padding:12,width:'100%',height:'100%',boxSizing:'border-box',overflow:'auto',fontFamily:'ui-monospace,monospace'}}>\n    <div style={{fontSize:10,color:'#737373',marginBottom:8}}>{type}</div>\n    <pre style={{fontSize,margin:0,whiteSpace:'pre-wrap',overflowWrap:'anywhere',textAlign:'left'}}>{formatted ?? 'undefined'}</pre>\n  </div>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "GeneralView",
+        "module": "async function run() {\n  // Inspect any JSON-compatible JavaScript value, including project object previews.\n  state.result = inputs.input1 ?? null;\n  await render();\n}"
+      }
+    },
+    {
+      "id": "activation",
+      "type": "block",
+      "position": {
+        "x": 760,
+        "y": 840
+      },
+      "width": 340,
+      "height": 300,
+      "data": {
+        "label": "Matrix activation controls",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "[[-3,-2,-1,0,1,2],[3,-4,5,-6,7,-8],[0,2,-2,4,-4,6]]",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          },
+          {
+            "id": "out-0",
+            "name": "out",
+            "type": "output",
+            "side": "right",
+            "variable": "output1"
+          }
+        ],
+        "renderEnabled": true,
+        "render": "function render({state,actions}) {\n  // state.matrix: original matrix; state.result: transformed output.\n  // state.alpha and state.beta persist in JSON and update without rebuilding controls.\n  return <div style={{width:'100%',padding:14,fontSize:12}}>\n    <strong>Input matrix · {state.matrix.length} × {state.matrix[0]?.length}</strong>\n    <pre style={{padding:8,borderRadius:8,background:'#eef2ff',color:'#312e81'}}>{state.matrix.map(row=>row.join(' ')).join('\\n')}</pre>\n    {[['alpha','Negative slope α',1],['beta','Positive slope β',2]].map(([name,label,max])=>\n      <label key={name} style={{display:'block',marginTop:10}}>\n        {label} <output style={{float:'right'}}>{state[name].toFixed(2)}</output>\n        <input aria-label={label} type=\"range\" min={0} max={max} step={0.01} value={state[name]}\n          style={{display:'block',width:'100%',accentColor:'#4f46e5'}}\n          onChange={event=>actions.setSlope(name,event.target.valueAsNumber)}/>\n      </label>)}\n    <small>Standard ReLU at α = 0 and β = 1</small>\n  </div>;\n}",
+        "state": {},
+        "recipe": "MatrixActivation",
+        "module": "async function run({inputs,value,state,actions,emit}) {\n  // state.matrix: source matrix; alpha/beta: tunable negative/positive slopes.\n  state.matrix = inputs.input1 ?? JSON.parse(value);\n  state.alpha ??= 0.2;\n  state.beta ??= 1;\n  function publish() {\n    state.result = state.matrix.map(row => row.map(x => x === 0 ? 0 : x * (x < 0 ? state.alpha : state.beta)));\n    emit(state.result);\n  }\n  actions.setSlope = (name, slope) => { state[name] = Number(slope); publish(); };\n  publish();\n}"
+      }
+    },
+    {
+      "id": "activation-view",
+      "type": "block",
+      "position": {
+        "x": 1140,
+        "y": 840
+      },
+      "width": 260,
+      "height": 200,
+      "data": {
+        "label": "General viewer",
+        "kind": "javascript",
+        "description": "A programmable, input-driven mask",
+        "color": "#171717",
+        "value": "",
+        "ports": [
+          {
+            "id": "in-0",
+            "name": "in 1",
+            "type": "input",
+            "side": "left",
+            "variable": "input1"
+          }
+        ],
+        "renderEnabled": true,
+        "render": "function render() {\n  // state.result: the value received on input1 (objects, arrays, strings or scalars).\n  // Tune the font size and JSON indentation here; non-finite numbers stay visible.\n  const fontSize = 12;\n  const value = state.result;\n  const type = value === null ? 'null' : Array.isArray(value) ? 'Array · ' + value.length : typeof value;\n  const formatted = JSON.stringify(value, (_key, item) => typeof item === 'number' && !Number.isFinite(item) ? String(item) : item, 2);\n  return <div style={{padding:12,width:'100%',height:'100%',boxSizing:'border-box',overflow:'auto',fontFamily:'ui-monospace,monospace'}}>\n    <div style={{fontSize:10,color:'#737373',marginBottom:8}}>{type}</div>\n    <pre style={{fontSize,margin:0,whiteSpace:'pre-wrap',overflowWrap:'anywhere',textAlign:'left'}}>{formatted ?? 'undefined'}</pre>\n  </div>;\n}",
+        "state": {},
+        "recipe": "GeneralView",
+        "module": "async function run() {\n  // Inspect any JSON-compatible JavaScript value, including project object previews.\n  state.result = inputs.input1 ?? null;\n  await render();\n}"
       }
     }
   ],
@@ -624,6 +707,14 @@
       "id": "pulse-ticks-0",
       "source": "pulse",
       "target": "ticks",
+      "sourceHandle": "out-0",
+      "targetHandle": "in-0",
+      "type": "smoothstep"
+    },
+    {
+      "id": "activation-activation-view-0",
+      "source": "activation",
+      "target": "activation-view",
       "sourceHandle": "out-0",
       "targetHandle": "in-0",
       "type": "smoothstep"

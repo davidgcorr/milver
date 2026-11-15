@@ -111,7 +111,8 @@ it('produces a syntactically valid standalone HTML viewer for the nested example
   const { parseDiagram } = await import('../model');
   const diagram = parseDiagram(readFileSync('examples/parent-block.json', 'utf8'));
   const html = await exportHtml(diagram, [], { ...options, scope: 'system' });
-  const script = html.match(/<script>\n([\s\S]*?)<\/script>/)![1];
+  const {JSDOM}=await import('jsdom');
+  const script = new JSDOM(html).window.document.querySelector('script:last-of-type')!.textContent!;
   expect(() => new Script(script)).not.toThrow();
   expect(html).toContain('data-enter="1"');
   // Optional local artifact generation for manual browser QA; normal test runs write nothing.

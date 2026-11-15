@@ -153,6 +153,7 @@ export class ProjectEngine {
     const { data } = node, ports = data.ports.filter(p => p.type === 'output');
     const publish = (value: unknown) => Object.fromEntries(ports.map(p => [p.id, value]));
     if (Object.keys(aliases).length) return aliases;
+    if (!data.operation && !['inport','outport','subsystem'].includes(data.kind) && external?.values && Object.keys(external.values).length) return {...external.values};
     if (data.operation) {
       const op = data.operation;
       const module = this.modules[nodeModuleAlias(node, this.catalog)];
@@ -175,20 +176,23 @@ export class ProjectEngine {
       }
       if (op.type === 'code') {
         const run = this.code.get(node.id)?.run; if (typeof run !== 'function') throw new Error('Export a run({ inputs, modules, state, parameters, tick }) function.');
-        const named = { ...inputs }; for (const p of data.ports) if (p.type === 'input' && p.variable) named[p.variable] = inputs[p.id];
+        const named = { ...inputs };data.ports.filter(p=>p.type==='input').forEach((p,i)=>named['input'+(i+1)]=inputs[p.id]); for (const p of data.ports) if (p.type === 'input' && p.variable) named[p.variable] = inputs[p.id];
         const modules = op.uses?.length ? Object.fromEntries(op.uses.map(alias => { if (!this.modules[alias]) throw new Error(`Missing module alias '${alias}'.`); return [alias, this.modules[alias]]; })) : this.modules;
         let state = this.states.get(node.id); if (!state) { state = {}; this.states.set(node.id, state); }
-        result = await Reflect.apply(run, undefined, [{ inputs: named, modules, state, parameters, tick: this.tick }]);
+        const published:Record<string,unknown>={};
+        const emit=(value:unknown,port=ports[0]?.id)=>{const output=ports.find(p=>p.id===port||p.variable===port);if(output)published[output.id]=value;};
+        result = await Reflect.apply(run, undefined, [{ inputs: named, modules, state, parameters, value:data.value, tick:this.tick, ports:data.ports, actions:{},emit,emitEvent:emit,render:async()=>{},setState:(patch:Record<string,unknown>)=>Object.assign(state!,patch) }]);
         if (op.effect !== 'pure') Object.values(inputs).forEach(value => this.mutate(value));
         const mapped: Record<string, unknown> = {};
-        for (const p of ports) mapped[p.id] = p.id === 'done' ? this.tick : record(result) && Object.hasOwn(result, p.variable ?? p.id) ? result[p.variable ?? p.id] : result;
+        for (const p of ports) mapped[p.id] = Object.hasOwn(published,p.id) ? published[p.id] : p.id === 'done' ? this.tick : record(result) && Object.hasOwn(result, p.variable ?? p.id) ? result[p.variable ?? p.id] : result;
         return mapped;
       }
       return Object.fromEntries(ports.map(p => [p.id, p.id === 'instance' ? inputs.object : p.id === 'done' ? (previous?.events.done ?? 0) + 1 : result]));
     }
     if (data.kind === 'javascript') {
       if (!data.nativeRecipe) return { ...(external?.values ?? {}) };
-      if (['Number', 'Boolean', 'Vector', 'Matrix', 'Tensor'].includes(data.recipe ?? '')) return publish(JSON.parse(data.value));
+      if (['Number','Vector','Matrix','Tensor'].includes(data.recipe??'')) { const math=this.modules.tensorMath??Object.values(this.modules).find(module=>module.tf&&typeof module.parse==='function'); return publish(typeof math?.parse==='function'?math.parse(data.value):JSON.parse(data.value)); }
+      if(data.recipe==='Boolean')return publish(JSON.parse(data.value));
       if (data.recipe === 'String') return publish(data.value);
       if (data.recipe === 'Slider') { const config = JSON.parse(data.value); return publish(config.initial); }
       if (data.recipe === 'Selector') { const config = JSON.parse(data.value); return publish(config.options[config.selected ?? 0]); }

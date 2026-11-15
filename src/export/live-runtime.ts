@@ -48,7 +48,8 @@ export function mountExport(config:ExportRuntimeConfig){
    const target=path.startsWith('visuals.')?(d.block.visuals??={}):d.block,key=path.split('.').at(-1)!;if(signalsEqual(target[key],value))return;target[key]=value;
    if(path==='value'){d.value=String(value);const node=config.plan.nodes.find(node=>node.id===d.id);if(node)node.data.value=d.value;schedule();}
    if(path==='visuals.foreground')d.color=String(value);if(path==='visuals.background')d.background=String(value);
-   const group=record.frame.closest<SVGGElement>('[data-block]'),visuals=d.block.visuals??{};
+   const group=document.querySelector<SVGGElement>(`[data-block="${d.frameKey}"]`),visuals=d.block.visuals??{};
+   if(visuals.opacity!==undefined)record.frame.style.opacity=String(visuals.opacity);
    if(group){if(visuals.opacity!==undefined)group.style.opacity=String(visuals.opacity);const shape=group.querySelector<SVGElement>(':scope>rect,:scope>ellipse,:scope>g[filter]>rect');if(shape){if(visuals.background)shape.setAttribute('fill',visuals.background);if(visuals.strokeColor)shape.setAttribute('stroke',visuals.strokeColor);if(visuals.strokeWidth!==undefined)shape.setAttribute('stroke-width',String(visuals.strokeWidth));if(visuals.radius!==undefined)shape.setAttribute('rx',String(visuals.radius));}}
    send(record);
   }

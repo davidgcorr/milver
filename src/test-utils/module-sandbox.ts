@@ -23,9 +23,14 @@ export async function sandbox(source: string, dependencies: ModuleDependency[] =
   const script = html.split('<script type="module">')[1].split('</script>')[0].replaceAll('await import(name)', 'await importModule(name)').replaceAll('await import(url)', 'await importModule(url)').replaceAll('await import(uiUrl)', 'await importModule(uiUrl)');
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   await new AsyncFunction('document', 'parent', 'addEventListener', 'URL', 'importModule', script)(document, parent, (name: string, callback: (event: any) => void) => { (listeners[name] ??= []).push(callback); }, url, importModule);
-  const send = async (value: string, input: unknown = 3, block?: Record<string,unknown>) => {
+  const dispatchInput = async (value: string, input: unknown = 3, block?: Record<string,unknown>) => {
     listeners.message.forEach(listener => listener({ source: parent, data: { type: 'mask-input', value, block, inputs: options.ports ? input : { 'in-0': input }, color: '#123456', background: '#ffffff' } }));
     await new Promise(resolve => setTimeout(resolve, 0));
+  };
+  const send = async (value:string,input:unknown=3,block?:Record<string,unknown>) => {
+    const act = (options.ui?.React as any)?.act;
+    if(options.element&&act)await act(()=>dispatchInput(value,input,block));
+    else await dispatchInput(value,input,block);
   };
   const command = async (command: Record<string,unknown>) => {
     const requestId = crypto.randomUUID();

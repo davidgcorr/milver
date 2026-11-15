@@ -1,6 +1,14 @@
 {
   "version": 1,
   "name": "JavaScript workbench",
+  "modules": [
+    {
+      "id": "builtin-math",
+      "alias": "math",
+      "builtin": "tensorflow",
+      "referenceUrl": "https://www.tensorflow.org/js"
+    }
+  ],
   "viewport": {
     "x": 40,
     "y": 80,
@@ -31,8 +39,10 @@
             "variable": "output1"
           }
         ],
-        "module": "export default function mount({ element, value, emit }) {\n  function update(inputs, value) {\n    const result = JSON.parse(value);\n    if (!Array.isArray(result) || !result.length || !result.every(row => Array.isArray(row) && row.length === result[0].length && row.every(Number.isFinite))) throw new Error('Enter a rectangular numeric JSON matrix.');\n    element.textContent = typeof result === 'object' ? JSON.stringify(result) : String(result);\n    element.style.cssText = 'font:14px system-ui;padding:12px;word-break:break-word;box-sizing:border-box';\n    emit(result);\n  }\n  update({}, value); return { update };\n}",
-        "recipe": "Matrix"
+        "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
+        "state": {},
+        "recipe": "Matrix",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -55,13 +65,17 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
-        }
+        },
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     },
     {
@@ -88,8 +102,10 @@
             "variable": "output1"
           }
         ],
-        "module": "export default function mount({ element, value, emit, setValue }) {\n  const wrapper=document.createElement('label'), control=document.createElement('input'), output=document.createElement('output');\n  control.type='range'; control.setAttribute('aria-label','Source slider');\n  wrapper.style.cssText='display:grid;gap:12px;width:80%'; wrapper.append(control,output); element.append(wrapper);\n  let config;\n  function publish(){output.textContent=control.value;emit(Number(control.value));}\n  control.oninput=()=>{publish();setValue(JSON.stringify({...config,initial:Number(control.value)}));};\n  function update(inputs,value){config=JSON.parse(value);if(!Number.isFinite(config.min)||!Number.isFinite(config.max)||config.max<=config.min||!Number.isFinite(config.step)||config.step<=0)throw new Error('Slider needs min < max and a positive step.');control.min=config.min;control.max=config.max;control.step=config.step;control.value=config.initial;publish();}\n  update({},value);return {update};\n}",
-        "recipe": "Slider"
+        "render": "function render() {\n  // state.config: { min, max, step, initial }; state.result: current numeric value.\n  // Slider is the same shadcn/Radix component used by the editor.\n  return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>\n    <Slider aria-label=\"Source slider\" min={state.config.min} max={state.config.max}\n      step={state.config.step} value={[state.result]}\n      onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>\n    <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>\n  </div>;\n}",
+        "state": {},
+        "recipe": "Slider",
+        "module": "async function run() {\n  state.config = JSON.parse(value);\n  const config = state.config;\n  if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');\n  state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -112,13 +128,17 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
-        }
+        },
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     },
     {
@@ -145,8 +165,10 @@
             "variable": "output1"
           }
         ],
-        "module": "export default function mount({ element, value, emit }) {\n  let timer,period,count=0;\n  function update(inputs,value){const next=Number(value);if(!Number.isFinite(next)||next<16||next>3600000)throw new Error('Clock period must be 16–3600000 ms.');if(next===period)return;clearInterval(timer);period=next;timer=setInterval(()=>{count++;element.textContent=String(count);emit(count);},period);element.textContent=String(count);emit(count);}\n  update({},value);return {update,destroy(){clearInterval(timer);}};\n}",
-        "recipe": "Clock"
+        "render": "async function render({ element, actions, ...scope }) {\n  // Preserved custom renderer. Replace this visual with JSX when convenient.\n  element.replaceChildren();\n  const legacyMount = function mount({ element, value, emit }) {\n    let timer,period,count=0;\n    function update(inputs,value){const next=Number(value);if(!Number.isFinite(next)||next<16||next>3600000)throw new Error('Clock period must be 16–3600000 ms.');if(next===period)return;clearInterval(timer);period=next;timer=setInterval(()=>{count++;element.textContent=String(count);emit(count);},period);element.textContent=String(count);emit(count);}\n    update({},value);return {update,destroy(){clearInterval(timer);}};\n  }\n  const mounted = await legacyMount({ ...scope, element, actions, emit: actions.publish, emitEvent: actions.publishEvent });\n  return () => typeof mounted === 'function' ? mounted() : mounted?.destroy?.();\n}",
+        "state": {},
+        "recipe": "Clock",
+        "module": "async function run({actions,emit,emitEvent}) {\n  // Render's saved controls publish through Code's output actions.\n  actions.publish = emit;\n  actions.publishEvent = emitEvent;\n}"
       }
     },
     {
@@ -169,13 +191,17 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
-        }
+        },
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     },
     {
@@ -202,8 +228,10 @@
             "variable": "output1"
           }
         ],
-        "module": "export default function mount({ element, value, emit }) {\n  function update(inputs, value) {\n    const result = JSON.parse(value);\n    if (typeof result !== 'number' || !Number.isFinite(result)) throw new Error('Enter a finite JSON number.');\n    element.textContent = typeof result === 'object' ? JSON.stringify(result) : String(result);\n    element.style.cssText = 'font:14px system-ui;padding:12px;word-break:break-word;box-sizing:border-box';\n    emit(result);\n  }\n  update({}, value); return { update };\n}",
-        "recipe": "Number"
+        "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
+        "state": {},
+        "recipe": "Number",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 0) throw new Error('Enter a number.');\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -230,8 +258,10 @@
             "variable": "output1"
           }
         ],
-        "module": "export default function mount({ element, value, emit }) {\n  function update(inputs, value) {\n    const result = JSON.parse(value);\n    if (typeof result !== 'number' || !Number.isFinite(result)) throw new Error('Enter a finite JSON number.');\n    element.textContent = typeof result === 'object' ? JSON.stringify(result) : String(result);\n    element.style.cssText = 'font:14px system-ui;padding:12px;word-break:break-word;box-sizing:border-box';\n    emit(result);\n  }\n  update({}, value); return { update };\n}",
-        "recipe": "Number"
+        "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
+        "state": {},
+        "recipe": "Number",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 0) throw new Error('Enter a number.');\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -272,13 +302,15 @@
             "variable": "output1"
           }
         ],
-        "module": "export default async function mount({ element, inputs, emit, wasm, ports }) {\n  if(!wasm)throw new Error('Import a .wasm module in the Code tab.');\n  const bytes=Uint8Array.from(atob(wasm.base64),c=>c.charCodeAt(0));\n  const {instance}=await WebAssembly.instantiate(bytes, {});\n  const fn=instance.exports[wasm.exportName];\n  if(typeof fn!=='function')throw new Error('Choose an exported WebAssembly function.');\n  function update(inputs){const args=ports.filter(p=>p.type==='input').map(p=>inputs[p.id]);if(args.some(x=>typeof x!=='number'||!Number.isFinite(x))){element.textContent='Connect numeric inputs';emit(null);return;}const result=fn(...args);element.textContent=String(result);emit(typeof result==='bigint'?Number(result):result);}\n  update(inputs);return {update};\n}",
+        "render": "function render() {\n  // state.result: finite numeric Wasm output, or null while inputs are missing.\n  return <span style={{fontSize:24}}>{state.result === null ? 'Connect numeric inputs' : String(state.result)}</span>;\n}",
+        "state": {},
         "recipe": "WebAssembly",
         "wasm": {
           "filename": "add.wasm",
           "base64": "AGFzbQEAAAABBwFgAn9/AX8DAgEABwcBA2FkZAAACgkBBwAgACABags=",
           "exportName": "add"
-        }
+        },
+        "module": "async function run() {\n  if (!wasm) throw new Error('Import a .wasm binary in Code.');\n  const bytes = Uint8Array.from(atob(wasm.base64), c => c.charCodeAt(0));\n  const { instance } = await WebAssembly.instantiate(bytes, {});\n  const args = ports.filter(p => p.type === 'input').map(p => inputs[p.id]);\n  state.result = args.every(x => typeof x === 'number' && Number.isFinite(x))\n    ? instance.exports[wasm.exportName](...args) : null;\n  if (typeof state.result === 'bigint') state.result = Number(state.result);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -301,13 +333,17 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
-        }
+        },
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     }
   ],

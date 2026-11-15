@@ -38,7 +38,7 @@ export function Inspector({ maskError, node, edge, nodes, activePort, setActiveP
   const [tab, setTab] = useState<'properties' | 'render' | 'code' | 'json'>('properties');
   const [openedTabs, setOpenedTabs] = useState<{ id?: string; tabs: string[] }>({ id: node?.id, tabs: ['properties'] });
   const opened = (name: string) => tab === name || openedTabs.id === node?.id && openedTabs.tabs.includes(name);
-  const codeBlock = node?.data.kind === 'javascript' || node?.data.kind === 'renderer' || node?.data.kind === 'python' || node?.data.operation?.type === 'code';
+  const codeBlock = !!node;
   useEffect(() => { if (!codeBlock && tab === 'code') setTab('properties'); }, [codeBlock, tab]);
   const parent = node?.data.kind === 'subsystem'; const boundary = node && isInterface(node);
   return <Card className="floating-panel inspector-panel" aria-label="Inspector">

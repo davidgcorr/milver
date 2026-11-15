@@ -33,9 +33,13 @@
             "id": "out-0",
             "name": "out",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
-        ]
+        ],
+        "render": "function render({state}) {\n  // state.result is computed in run(); tune the visual here.\n  return <MathValue value={state.result} fontSize={24}/>;\n}",
+        "state": {},
+        "module": "async function run() {\n  let result;\n  try { result = JSON.parse(value); } catch { result = value; }\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -58,15 +62,21 @@
             "id": "controller-input",
             "name": "Input",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           },
           {
             "id": "controller-output",
             "name": "Output",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
         ],
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
+        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
         "canvas": {
           "viewport": {
             "x": 100,
@@ -81,8 +91,8 @@
                 "x": 0,
                 "y": 100
               },
-              "width": 164,
-              "height": 116,
+              "width": 28,
+              "height": 28,
               "data": {
                 "label": "Input",
                 "kind": "inport",
@@ -94,9 +104,14 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "exposedSide": "left"
               }
             },
@@ -120,15 +135,20 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   },
                   {
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
-                ]
+                ],
+                "render": "function render({state}) {\n  // state.result is computed in run(); tune the visual here.\n  return <MathValue value={state.result} fontSize={24}/>;\n}",
+                "state": {},
+                "module": "async function run() {\n  state.result = typeof inputs.input1 === 'number' ? inputs.input1 * Number(value) : null;\n  emit(state.result);\n}"
               }
             },
             {
@@ -138,8 +158,8 @@
                 "x": 560,
                 "y": 100
               },
-              "width": 164,
-              "height": 116,
+              "width": 28,
+              "height": 28,
               "data": {
                 "label": "Output",
                 "kind": "outport",
@@ -151,9 +171,14 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "exposedSide": "right"
               }
             }
@@ -199,9 +224,13 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
-        ]
+        ],
+        "render": "function render({state}) {\n  // state.result is computed in run(); tune the visual here.\n  return <MathValue value={state.result} fontSize={24}/>;\n}",
+        "state": {},
+        "module": "async function run() {\n  state.result = inputs.input1 ?? null;\n}"
       }
     }
   ],

@@ -41,7 +41,7 @@ export function previewSignals(canvas: Canvas, emitted: Record<string, Signals> 
     if (node.data.kind === 'gain' && typeof first === 'number' && Number.isFinite(numeric)) value = first * numeric;
     if (node.data.kind === 'sum' && values.length && values.every(v => typeof v === 'number')) value = values.reduce<number>((a, v, i) => a + (node.data.value[i] === '-' ? -1 : 1) * (v as number), 0);
     if (typeof value === 'number' && Number.isNaN(value)) value = null;
-    const outputs = Object.fromEntries(node.data.ports.filter(p => p.type === 'output').map(p => [p.id, cyclic.has(id) ? null : node.data.kind === 'javascript' ? emitted[id]?.[p.id] ?? null : value]));
+    const outputs = Object.fromEntries(node.data.ports.filter(p => p.type === 'output').map(p => [p.id, cyclic.has(id) ? null : emitted[id]?.[p.id] ?? (node.data.kind === 'javascript' ? null : value)]));
     result[id] = { inputs: cyclic.has(id) ? Object.fromEntries(Object.keys(inputs).map(k => [k, null])) : inputs, outputs };
     return outputs;
   };

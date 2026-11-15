@@ -41,6 +41,7 @@ async function flush() {
    send({type:'mask-status',error:''});
    document.body.style.color=next.color;element.style.background=next.background;
    const inputs={...next.inputs},variables={};
+   (config.ports??[]).filter(p=>p.type==='input').forEach((p,i)=>{inputs['input'+(i+1)]=next.inputs[p.id]??null;});
    for(const p of config.ports??[])if(p.type==='input'&&p.variable){inputs[p.variable]=next.inputs[p.id]??null;variables[p.variable]=next.inputs[p.id]??null;}
    if(current && typeof current.update==='function')await current.update(inputs,next.value,variables,next.block);
    else {

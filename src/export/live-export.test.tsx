@@ -26,7 +26,7 @@ function project():Diagram{
 it('exports actual sandboxed render frames and safely packages JSX, state, libraries and runtimes once',async()=>{
  const diagram=project();diagram.nodes[0].data.value='</script><script>injected()</script>';diagram.nodes[0].data.state={infinite:Infinity};
  const html=await exportHtml(diagram,[],defaultExportOptions),dom=new JSDOM(html),doc=dom.window.document;
- expect(doc.querySelectorAll('foreignObject iframe[sandbox="allow-scripts"]')).toHaveLength(2);
+ expect(doc.querySelectorAll('.sheet>iframe[sandbox="allow-scripts"]')).toHaveLength(2);expect(doc.querySelector('foreignObject')).toBeNull();
  expect(doc.querySelector('main')!.textContent).not.toContain('DOM');
  expect(doc.querySelector('main')!.textContent).not.toContain('JS module');
  const config=parseSignal(doc.getElementById('export-runtime')!.textContent!);

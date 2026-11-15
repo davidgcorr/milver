@@ -14,7 +14,7 @@ try {
     code(id,x,y,label,inputs,body,parameters={},recipe='DOM'){
       const n=makeNode('compute',{x,y},id);n.width=260;n.height=180;n.data.label=label;n.data.recipe=recipe;
       n.data.value=JSON.stringify(parameters);
-      n.data.module=`// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n${body.split('\n').map(line=>'  '+line).join('\n')}\n}`;
+      n.data.module=`// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n${body.split('\n').map(line=>'  '+line).join('\n')}\n}`;
       n.data.ports=[...inputs.map((name,i)=>({id:`in-${i}`,name,type:'input',side:'left',variable:name})),{id:'out-0',name:'result',type:'output',side:'right',variable:'result'}];
       return this.add(n);
     }

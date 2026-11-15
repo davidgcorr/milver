@@ -1,5 +1,6 @@
 import { stringifySignal, parseSignal } from '@/signal-json';
 import { ProjectContext } from '@/project/context';
+import { defaultRender } from '@/block-code';
 import { buildBlockModule } from '@/block-code';
 import type { BlockData } from '@/model';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,7 +14,7 @@ let renderBundle: Promise<string> | undefined;
 export const loadRenderBundle = () => renderBundle ??= import('../generated/block-ui.js?raw').then(module => module.default).catch(error => { renderBundle = undefined; throw error; });
 let mathBundle: Promise<string> | undefined;
 export const loadMathBundle = () => mathBundle ??= import('../generated/block-math.js?raw').then(m => m.default).catch(error => { mathBundle = undefined; throw error; });
-export function ModuleMask({ id, source, render, state, value, color, background, ports, dependencies, wasm, renderer, block: blockProperties, interactive = false }: { block?: Record<string, unknown>; id: string; source?: string; render?: string; state?: BlockData['state']; value: string; color: string; background: string; ports: Port[]; dependencies?: ModuleDependency[]; wasm?: WasmConfig; renderer?: RendererConfig; interactive?: boolean }) {
+export function ModuleMask({ id, source, render, state, value, color, background, ports, dependencies, wasm, renderer, renderEnabled = true, block: blockProperties, interactive = false }: { block?: Record<string, unknown>; id: string; source?: string; render?: string; state?: BlockData['state']; value: string; color: string; background: string; ports: Port[]; dependencies?: ModuleDependency[]; wasm?: WasmConfig; renderer?: RendererConfig; renderEnabled?: boolean; interactive?: boolean }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const { values, emit, setValue, saveState, setProperty, report } = useContext(PreviewContext);
   const project = useContext(ProjectContext);
@@ -27,11 +28,12 @@ export function ModuleMask({ id, source, render, state, value, color, background
   const inputs = stringifySignal(values[id]?.inputs ?? {});
   const block = stringifySignal({ id, label: 'Block', width: 240, height: 190, ...blockProperties });
   const settings = JSON.stringify({ dependencies: allDependencies, ports: ports.map(({ id, type, variable }) => ({ id, type, variable })), wasm, renderer });
+  const visualSource=render??(source===undefined||/\bfunction\s+run\s*\(/.test(source)?defaultRender:undefined);
   const code = useMemo(() => {
-    try { return render !== undefined ? buildBlockModule(source ?? '', render) : source ?? defaultModule; }
+    try { return visualSource !== undefined ? buildBlockModule(source ?? defaultModule, visualSource, renderEnabled) : source ?? defaultModule; }
     catch (error) { return `export default function(){throw new Error(${JSON.stringify(String(error))});}`; }
-  }, [source, render]);
-  const needsUI = render !== undefined || /React\.createElement|\blatex\s*\(/.test(code);
+  }, [source, visualSource, renderEnabled]);
+  const needsUI = visualSource !== undefined || /React\.createElement|\blatex\s*\(/.test(code);
   const [uiSource, setUISource] = useState<string>();
   const needsMath = builtins.length > 0;
   useEffect(() => { let active = true; if (needsMath) void loadMathBundle().then(source => { if (active) setMathSource(source); }).catch(error => { if (active) report(id, String(error)); }); return () => { active = false; }; }, [needsMath, id, report]);

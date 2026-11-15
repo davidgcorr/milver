@@ -1,6 +1,7 @@
+import {normalizeFunctions} from './block-functions';
 import { viewerLogic, viewerRender } from './viewer-code';
 import { signalReplacer, signalReviver } from './signal-json';
-import { mathLibrary } from './default-libraries';
+import { mathLibrary,withMath } from './default-libraries';
 import { defaultLogic, defaultRender, type ControlledPath } from './block-code';
 import type { Signal } from './runtime';
 import { parseModules, parseOperation, defaultComputeSource, type Operation, type ProjectModule } from './project/schema';
@@ -18,6 +19,7 @@ export type BlockData = {
   visuals?: BlockVisuals;
   module?: string;
   render?: string;
+  renderEnabled?: boolean;
   state?: Record<string, Signal>;
   controlledProperties?: ControlledPath[];
   projectModuleId?: string;
@@ -53,12 +55,7 @@ export const templates = [
   { kind: 'inport', label: 'Input', description: 'Expose an input on the parent', symbol: '→', value: '', inputs: 0, outputs: 1 },
   { kind: 'outport', label: 'Output', description: 'Expose an output on the parent', symbol: '→', value: '', inputs: 1, outputs: 0 },
 ];
-export const defaultModule = `export default function mount({ element, inputs, value, emit }) {
-  const signal = inputs['in-0'] ?? Number(value);
-  element.textContent = 'JS · ' + signal;
-  element.style.font = '24px system-ui';
-  emit(signal);
-}`;
+export const defaultModule = defaultLogic;
 export const isInterface = (node: BlockNode) => node.data.kind === 'inport' || node.data.kind === 'outport';
 export function interfacePorts(canvas: Canvas): Port[] {
   return canvas.nodes.filter(isInterface).map(n => ({ id: n.id, name: n.data.label, type: n.data.kind === 'inport' ? 'input' : 'output', side: n.data.exposedSide ?? (n.data.kind === 'inport' ? 'left' : 'right'), ...(n.data.exposedOffset !== undefined ? { offset: n.data.exposedOffset } : {}) }));
@@ -88,6 +85,7 @@ export function makeNode(kind: string, position: { x: number; y: number }, id: s
     ], viewport: { x: 100, y: 180, zoom: 1 } };
     node.data.ports = interfacePorts(node.data.canvas);
   }
+  node.data=normalizeFunctions(node.data);
   return node;
 }
 export function exampleDiagram(): Diagram {
@@ -137,7 +135,7 @@ export function parseDiagram(json: string): Diagram {
     for (const date of [createdAt, updatedAt]) if (date !== undefined && (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(date) || !Number.isFinite(Date.parse(date)))) throw new Error('Invalid project date.');
     metadata = { ...(author !== undefined ? { author: author as string } : {}), ...(createdAt !== undefined ? { createdAt: createdAt as string } : {}), ...(updatedAt !== undefined ? { updatedAt: updatedAt as string } : {}) };
   }
-  let totalNodes = 0; let totalEdges = 0;
+  let totalNodes = 0; let totalEdges = 0;let migratedMath=false,migratedThree=false;
   function parseCanvas(value: unknown, depth: number): Canvas {
     if (depth > 16) throw new Error('Nested canvases can be at most 16 levels deep.');
     if (!record(value) || !Array.isArray(value.nodes) || !Array.isArray(value.edges)) throw new Error('Each canvas needs nodes and edges.');
@@ -185,7 +183,7 @@ export function parseDiagram(json: string): Diagram {
         const defined = interfacePorts(data.canvas);
         if (defined.length !== ports.length || defined.some(p => !ports.some(q => q.id === p.id && q.name === p.name && q.side === p.side && q.type === p.type && q.offset === p.offset))) throw new Error(`Parent block ${n.id} ports must match its internal Input and Output blocks.`);
       } else if (b.canvas !== undefined) throw new Error('Only parent blocks can contain a canvas.');
-      ids.add(n.id); nodes.push({ id: n.id, type: 'block', position: { x: n.position.x, y: n.position.y }, width: ['inport', 'outport'].includes(data.kind) ? 28 : n.width, height: ['inport', 'outport'].includes(data.kind) ? 28 : n.height, data });
+      ids.add(n.id); nodes.push({ id: n.id, type: 'block', position: { x: n.position.x, y: n.position.y }, width: ['inport', 'outport'].includes(data.kind) ? 28 : n.width, height: ['inport', 'outport'].includes(data.kind) ? 28 : n.height, data:(()=>{const normalized=normalizeFunctions(data);if(data.kind==='javascript'&&/export\s+default/.test(data.module??'')){if(normalized.module?.includes('modules.tensorMath'))migratedMath=true;if(data.recipe==='Three.js'&&normalized.module!==data.module)migratedThree=true;}return normalized;})() });
     }
     const edgeIds = new Set<string>(); const occupied = new Set<string>(); const edges: Edge[] = [];
     for (const e of value.edges) {
@@ -218,7 +216,11 @@ export function parseDiagram(json: string): Diagram {
       return { id: b.id, name: b.name, width: parsed.width!, height: parsed.height!, data: parsed.data, ...(b.modules !== undefined ? { modules: parseModules(b.modules) } : {}) };
     });
   }
-  return { version: 1, name: d.name, ...(metadata ? { metadata } : {}), ...(myBlocks ? { myBlocks } : {}), ...(theme ? { theme } : {}), ...(d.modules !== undefined ? { modules: parseModules(d.modules) } : {}), ...parseCanvas(d, 0) };
+  const canvas=parseCanvas(d,0);
+  let modules=d.modules!==undefined?parseModules(d.modules):undefined;
+  if(migratedMath)modules=withMath(modules);
+  if(migratedThree&&!modules?.some(module=>module.alias==='THREE'))modules=[...(modules??[]),{id:'legacy-three',alias:'THREE',url:'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'}];
+  return { version: 1, name: d.name, ...(metadata ? { metadata } : {}), ...(myBlocks ? { myBlocks } : {}), ...(theme ? { theme } : {}), ...(modules?{modules}:{}), ...canvas };
 }
 
 export function parseFlowSettings(value: unknown): FlowSettings {

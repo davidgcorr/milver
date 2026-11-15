@@ -22,7 +22,7 @@ export async function exportHtml(diagram: Diagram, path: string[], options: Expo
         svg = svg.replace(pattern, `${pattern} data-enter="${child.index}" role="button" tabindex="0" aria-label="${escapeXml(`Enter ${node.data.label}`)}"`);
       }
     });
-    return `<section class="sheet" data-page="${i}"${i ? ' hidden' : ''}>${svg}</section>`;
+    return `<section class="sheet" data-page="${i}"${i ? ' hidden' : ''}>${svg}${(scene.masks??[]).map(mask=>`<iframe data-export-key="${escapeXml(mask.key)}" title="${escapeXml(mask.label)}" sandbox="allow-scripts" style="position:absolute;display:block;left:${mask.x}px;top:${mask.y}px;width:${mask.width}px;height:${mask.height}px;opacity:${mask.opacity};border:0;background:transparent;pointer-events:auto;user-select:auto"></iframe>`).join('')}</section>`;
   }).join('');
   const p = scenes[0].palette;
   if(live)for(const block of live.config.blocks)block.color ||= p.primary;

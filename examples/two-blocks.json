@@ -1,6 +1,11 @@
 {
   "version": 1,
   "name": "My system",
+  "viewport": {
+    "x": 80,
+    "y": 160,
+    "zoom": 1
+  },
   "nodes": [
     {
       "id": "source",
@@ -22,9 +27,13 @@
             "id": "out",
             "name": "out",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
-        ]
+        ],
+        "render": "function render({state}) {\n  // state.result is computed in run(); tune the visual here.\n  return <MathValue value={state.result} fontSize={24}/>;\n}",
+        "state": {},
+        "module": "async function run() {\n  let result;\n  try { result = JSON.parse(value); } catch { result = value; }\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -47,9 +56,13 @@
             "id": "in",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
-        ]
+        ],
+        "render": "function render({state}) {\n  // state.result is computed in run(); tune the visual here.\n  return <MathValue value={state.result} fontSize={24}/>;\n}",
+        "state": {},
+        "module": "async function run() {\n  state.result = inputs.input1 ?? value;\n  emit(state.result);\n}"
       }
     }
   ],
@@ -57,15 +70,10 @@
     {
       "id": "signal",
       "source": "source",
-      "sourceHandle": "out",
       "target": "sink",
+      "sourceHandle": "out",
       "targetHandle": "in",
       "type": "smoothstep"
     }
-  ],
-  "viewport": {
-    "x": 80,
-    "y": 160,
-    "zoom": 1
-  }
+  ]
 }

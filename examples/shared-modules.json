@@ -30,7 +30,11 @@
         "color": "#171717",
         "value": "",
         "ports": [],
-        "projectModuleId": "math-module"
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
+        "projectModuleId": "math-module",
+        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}"
       }
     },
     {
@@ -53,9 +57,13 @@
             "id": "out-0",
             "name": "out",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
-        ]
+        ],
+        "render": "function render({state}) {\n  // state.result is computed in run(); tune the visual here.\n  return <MathValue value={state.result} fontSize={24}/>;\n}",
+        "state": {},
+        "module": "async function run() {\n  let result;\n  try { result = JSON.parse(value); } catch { result = value; }\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -78,9 +86,13 @@
             "id": "out-0",
             "name": "out",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
-        ]
+        ],
+        "render": "function render({state}) {\n  // state.result is computed in run(); tune the visual here.\n  return <MathValue value={state.result} fontSize={24}/>;\n}",
+        "state": {},
+        "module": "async function run() {\n  let result;\n  try { result = JSON.parse(value); } catch { result = value; }\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -102,46 +114,49 @@
           {
             "id": "arg-0",
             "name": "a",
-            "variable": "a",
+            "type": "input",
             "side": "left",
-            "type": "input"
+            "variable": "a"
           },
           {
             "id": "arg-1",
             "name": "b",
-            "variable": "b",
+            "type": "input",
             "side": "left",
-            "type": "input"
+            "variable": "b"
           },
           {
             "id": "trigger",
             "name": "trigger / after",
-            "variable": "trigger",
+            "type": "input",
             "side": "top",
-            "type": "input"
+            "variable": "trigger"
           },
           {
             "id": "result",
             "name": "result",
-            "variable": "result",
+            "type": "output",
             "side": "right",
-            "type": "output"
+            "variable": "result"
           },
           {
             "id": "done",
             "name": "done",
-            "variable": "done",
+            "type": "output",
             "side": "bottom",
-            "type": "output"
+            "variable": "done"
           }
         ],
-        "module": "export function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}",
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
         "operation": {
           "type": "function",
           "effect": "pure",
           "moduleId": "math-module",
           "exportName": "matmul"
-        }
+        },
+        "module": "function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}"
       }
     },
     {
@@ -164,13 +179,17 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
-        }
+        },
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     },
     {
@@ -192,25 +211,28 @@
           {
             "id": "arg-0",
             "name": "initial",
-            "variable": "initial",
+            "type": "input",
             "side": "left",
-            "type": "input"
+            "variable": "initial"
           },
           {
             "id": "result",
             "name": "instance",
-            "variable": "result",
+            "type": "output",
             "side": "right",
-            "type": "output"
+            "variable": "result"
           }
         ],
-        "module": "export function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}",
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
         "operation": {
           "type": "construct",
           "effect": "pure",
           "moduleId": "math-module",
           "exportName": "Accumulator"
-        }
+        },
+        "module": "function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}"
       }
     },
     {
@@ -232,53 +254,56 @@
           {
             "id": "object",
             "name": "object",
-            "variable": "object",
+            "type": "input",
             "side": "left",
-            "type": "input"
+            "variable": "object"
           },
           {
             "id": "arg-0",
             "name": "amount",
-            "variable": "amount",
+            "type": "input",
             "side": "left",
-            "type": "input"
+            "variable": "amount"
           },
           {
             "id": "trigger",
             "name": "trigger / after",
-            "variable": "trigger",
+            "type": "input",
             "side": "top",
-            "type": "input"
+            "variable": "trigger"
           },
           {
             "id": "result",
             "name": "result",
-            "variable": "result",
+            "type": "output",
             "side": "right",
-            "type": "output"
+            "variable": "result"
           },
           {
             "id": "instance",
             "name": "same object",
-            "variable": "instance",
+            "type": "output",
             "side": "right",
-            "type": "output"
+            "variable": "instance"
           },
           {
             "id": "done",
             "name": "done",
-            "variable": "done",
+            "type": "output",
             "side": "bottom",
-            "type": "output"
+            "variable": "done"
           }
         ],
-        "module": "export function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}",
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
         "operation": {
           "type": "method",
           "effect": "step",
           "moduleId": "math-module",
           "member": "add"
-        }
+        },
+        "module": "function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}"
       }
     },
     {
@@ -301,21 +326,28 @@
             "id": "object-in",
             "name": "Shared instance",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           },
           {
             "id": "after-in",
             "name": "After",
             "type": "input",
-            "side": "top"
+            "side": "top",
+            "variable": "input2"
           },
           {
             "id": "result-out",
             "name": "Value",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
         ],
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
+        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
         "canvas": {
           "viewport": {
             "x": 30,
@@ -330,8 +362,8 @@
                 "x": 20,
                 "y": 100
               },
-              "width": 164,
-              "height": 116,
+              "width": 28,
+              "height": 28,
               "data": {
                 "label": "Shared instance",
                 "kind": "inport",
@@ -343,9 +375,14 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "exposedSide": "left"
               }
             },
@@ -356,8 +393,8 @@
                 "x": 20,
                 "y": 300
               },
-              "width": 164,
-              "height": 116,
+              "width": 28,
+              "height": 28,
               "data": {
                 "label": "After",
                 "kind": "inport",
@@ -369,9 +406,14 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "exposedSide": "top"
               }
             },
@@ -394,53 +436,56 @@
                   {
                     "id": "object",
                     "name": "object",
-                    "variable": "object",
+                    "type": "input",
                     "side": "left",
-                    "type": "input"
+                    "variable": "object"
                   },
                   {
                     "id": "arg-0",
                     "name": "amount",
-                    "variable": "amount",
+                    "type": "input",
                     "side": "left",
-                    "type": "input"
+                    "variable": "amount"
                   },
                   {
                     "id": "trigger",
                     "name": "trigger / after",
-                    "variable": "trigger",
+                    "type": "input",
                     "side": "top",
-                    "type": "input"
+                    "variable": "trigger"
                   },
                   {
                     "id": "result",
                     "name": "result",
-                    "variable": "result",
+                    "type": "output",
                     "side": "right",
-                    "type": "output"
+                    "variable": "result"
                   },
                   {
                     "id": "instance",
                     "name": "same object",
-                    "variable": "instance",
+                    "type": "output",
                     "side": "right",
-                    "type": "output"
+                    "variable": "instance"
                   },
                   {
                     "id": "done",
                     "name": "done",
-                    "variable": "done",
+                    "type": "output",
                     "side": "bottom",
-                    "type": "output"
+                    "variable": "done"
                   }
                 ],
-                "module": "export function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
                 "operation": {
                   "type": "method",
                   "effect": "step",
                   "moduleId": "math-module",
                   "member": "add"
-                }
+                },
+                "module": "function run({ inputs, modules, state, parameters, tick }) {\n  // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).\n  return { result: inputs.input1 ?? parameters };\n}"
               }
             },
             {
@@ -450,8 +495,8 @@
                 "x": 700,
                 "y": 150
               },
-              "width": 164,
-              "height": 116,
+              "width": 28,
+              "height": 28,
               "data": {
                 "label": "Value",
                 "kind": "outport",
@@ -463,9 +508,14 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "exposedSide": "right"
               }
             }
@@ -519,13 +569,17 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
-        }
+        },
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     },
     {
@@ -552,14 +606,17 @@
             "variable": "result"
           }
         ],
-        "module": "export function run({ modules }) { return { result: modules.math.add(20, 22) }; }",
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
         "operation": {
           "type": "code",
           "effect": "pure",
           "uses": [
             "math"
           ]
-        }
+        },
+        "module": "function run({ modules }) { return { result: modules.math.add(20, 22) }; }"
       }
     },
     {
@@ -582,13 +639,17 @@
             "id": "in-0",
             "name": "in",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
-        }
+        },
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     }
   ],

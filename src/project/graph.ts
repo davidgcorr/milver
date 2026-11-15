@@ -36,7 +36,7 @@ export function compileProject(project: Diagram): ProjectPlan {
         const link = resolve(canvas, path, node.id, p.id); if (link && link.node !== nodeKey(path, node.id)) aliases[p.id] = link;
       }
       const cleanPorts: Port[] = ports.map(({ id, type, variable, name, side }) => ({ id, type, name, side, ...(variable ? { variable } : {}) }));
-      nodes.push({ id: nodeKey(path, node.id), data: { kind, value, ...(kind === 'compute' ? { module, operation } : {}), recipe, nativeRecipe: kind === 'javascript' && !!recipe && Object.hasOwn(jsRecipes, recipe) && module === jsRecipes[recipe as keyof typeof jsRecipes].source, renderer, ports: cleanPorts }, inputs, aliases });
+      nodes.push({ id: nodeKey(path, node.id), data: { kind, value, ...(kind === 'compute' ? { module: module && !/\bexport\s+(?:async\s+)?function\s+run/.test(module) ? module+'\nexport { run };' : module, operation } : {}), recipe, nativeRecipe: kind === 'javascript' && !!recipe && Object.hasOwn(jsRecipes, recipe) && module === jsRecipes[recipe as keyof typeof jsRecipes].source, renderer, ports: cleanPorts }, inputs, aliases });
       if (node.data.canvas) visit(node.data.canvas, [...path, node.id]);
     }
   }

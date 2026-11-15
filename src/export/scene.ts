@@ -1,3 +1,4 @@
+import {usesBlockFunctions} from '../block-functions';
 import { blockPresentation } from '../block-presentation';
 import { roughPaths } from '../rough';
 import { portOffset } from '../ports';
@@ -11,7 +12,8 @@ export type ExportOptions = { scope: 'current' | 'system'; width: number; transp
 export const defaultExportOptions: ExportOptions = { scope: 'current', width: 1600, transparent: false, grid: false, title: true, animate: true };
 export type ExportPage = { title: string; path: string[]; canvas: Canvas; index: number; parent: number | null };
 export type ExportWire = { d: string; x: number; y: number; animationSize?: number; glow?: boolean; color?: string; reverse?: boolean };
-export type ExportScene = { width: number; height: number; body: string; wires: ExportWire[]; palette: ExportPalette; title: string; rough?: boolean; roughness?: number };
+export type ExportMask = {key:string;x:number;y:number;width:number;height:number;opacity:number;label:string};
+export type ExportScene = { masks?:ExportMask[]; width: number; height: number; body: string; wires: ExportWire[]; palette: ExportPalette; title: string; rough?: boolean; roughness?: number };
 export type ExportPalette = { background: string; card: string; foreground: string; muted: string; primary: string; border: string; grid: string; secondary: string };
 const sides: Record<Side, Position> = { left: Position.Left, right: Position.Right, top: Position.Top, bottom: Position.Bottom };
 
@@ -83,10 +85,7 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
   if (data.kind === 'python') symbol = text(w / 2, h / 2 + 8, 'Python code', 18, `text-anchor="middle" fill="${palette.primary}"`);
   if (data.kind === 'javascript') symbol = text(w / 2, h / 2 + 8, data.recipe ?? 'JS module', 18, `text-anchor="middle" fill="${palette.primary}"`);
   if (boundary) symbol = text(w / 2, h / 2 + 5, data.kind === 'inport' ? '→' : '←', 14, `text-anchor="middle" fill="${palette.primary}"`);
-  if (liveMasks && ['javascript','renderer'].includes(data.kind)) {
-    const top=v.showHeader===false?5:30;
-    symbol=`<foreignObject x="10" y="${top}" width="${Math.max(1,w-20)}" height="${Math.max(1,h-top-5)}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%"><iframe data-export-key="${escapeXml(index)}" title="${escapeXml(data.label)}" sandbox="allow-scripts" style="display:block;width:100%;height:100%;border:0;background:transparent"></iframe></div></foreignObject>`;
-  }
+  if (liveMasks && usesBlockFunctions(data)) symbol='';
   if (v.showValue === false) symbol = '';
   const ports = data.ports.map(port => {
     const absolute = handlePoint(node, port); const x = absolute.x - node.position.x, y = absolute.y - node.position.y;
@@ -105,6 +104,7 @@ export function buildScene(diagram: Diagram, pages: ExportPage[], options: Expor
   const theme = diagram.theme ?? defaultTheme; const palette = exportPalette(theme);
   const sheets = pages.map(page => ({ ...page, bounds: canvasBounds(page.canvas) }));
   const width = Math.max(400, ...sheets.map(s => s.bounds.width + 128));
+  const masks:ExportMask[]=[];
   const wires: ExportWire[] = []; let yOffset = 0;
   const body = sheets.map(sheet => {
     const heading = options.title || sheets.length > 1 ? 44 : 0;
@@ -123,6 +123,10 @@ export function buildScene(diagram: Diagram, pages: ExportPage[], options: Expor
       const sketch = theme.rough ? roughPaths(d,edge.id,settings.color ?? palette.muted,settings.width ?? 1.5,theme.roughness ?? 1).map(p=>`<path d="${p.d}" fill="none" stroke="${p.stroke}" stroke-width="${p.strokeWidth}"/>`).join('') : '';
       return sketch + `<path d="${d}" fill="none" stroke="${theme.rough ? 'none' : settings.color ?? palette.muted}" stroke-width="${settings.width ?? 1.5}" marker-end="url(#arrow)"/>`;
     }).join('');
+    if(liveMasks)sheet.canvas.nodes.forEach((node,i)=>{
+      const v=node.data.visuals??{},top=v.showHeader===false?5:30;
+      if(usesBlockFunctions(node.data)&&node.data.renderEnabled!==false&&v.showValue!==false)masks.push({key:`${sheet.index}-${i}`,x:x+node.position.x+10,y:y+node.position.y+top,width:Math.max(1,(node.width??164)-20),height:Math.max(1,(node.height??116)-top-5),opacity:v.opacity??1,label:node.data.label});
+    });
     const blocks = sheet.canvas.nodes.map((node, i) => renderBlock(node, `${sheet.index}-${i}`, palette, theme.radius - 1, interactive ? pages.find(p => p.path.length === sheet.path.length + 1 && p.path.slice(0, -1).every((id, j) => id === sheet.path[j]) && p.path.at(-1) === node.id)?.index : undefined, theme.rough === true, theme.roughness ?? 1, liveMasks)).join('');
     const title = heading ? `<text x="32" y="${yOffset + 36}" font-size="13" font-weight="600" fill="${palette.foreground}">${escapeXml(sheet.title)}</text><path d="M32 ${yOffset + 52}H${width - 32}" stroke="${palette.border}"/>` : '';
     const separator = yOffset ? `<path d="M0 ${yOffset}H${width}" stroke="${palette.border}"/>` : '';
@@ -130,7 +134,7 @@ export function buildScene(diagram: Diagram, pages: ExportPage[], options: Expor
     yOffset += sheetHeight;
     return `${separator}${title}<g transform="translate(${x} ${y})">${paths}${blocks}</g>${empty}`;
   }).join('');
-  return { width, height: Math.max(200, yOffset), body, wires, palette, ...(theme.rough ? { rough: true, roughness: theme.roughness ?? 1 } : {}), title: pages[0]?.title || diagram.name };
+  return { ...(liveMasks?{masks}:{}),width, height: Math.max(200, yOffset), body, wires, palette, ...(theme.rough ? { rough: true, roughness: theme.roughness ?? 1 } : {}), title: pages[0]?.title || diagram.name };
 }
 export function rasterSize(scene: Pick<ExportScene, 'width' | 'height'>, requestedWidth: number, format: 'png' | 'gif' = 'png') {
   const limit = format === 'gif' ? 2_000_000 : 16_000_000;

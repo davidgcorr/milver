@@ -27,7 +27,7 @@ export function parseOperation(value: unknown): Operation {
   if (value.uses !== undefined && (!Array.isArray(value.uses) || value.uses.length > 64 || value.uses.some(v => typeof v !== 'string' || !validVariable(v)) || new Set(value.uses).size !== value.uses.length)) throw new Error('Invalid module uses list.');
   return { type: value.type as Operation['type'], effect: value.effect as Operation['effect'], ...Object.fromEntries(['moduleId', 'exportName', 'member', 'uses'].filter(k => value[k] !== undefined).map(k => [k, value[k]])) };
 }
-export const defaultComputeSource = `export function run({ inputs, modules, state, parameters, tick }) {
+export const defaultComputeSource = `async function run({ inputs, modules, state, parameters, tick }) {
   // Project modules are available by alias, e.g. modules.linalg.matmul(a, b).
   return { result: inputs.input1 ?? parameters };
 }`;

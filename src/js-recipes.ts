@@ -2,83 +2,39 @@ import { iframeRecipes } from './iframe-recipes';
 import { interactiveRecipes, demoLibrary } from './interactive-recipes';
 import { dataSourceRecipes } from './data-source-recipes';
 import { tokenizerRecipes } from './tokenizer-recipes';
-import { operatorRecipes, sinkRecipes, numericRender } from './operator-recipes';
+import { operatorRecipes, sinkRecipes } from './operator-recipes';
 import { defaultLogic, defaultRender, completeFunction } from './block-code';
 import { makeNode, type BlockNode } from './model';
-import { moduleRecipes } from './module-recipes';
+import {standardRecipes} from './standard-recipes';
 
-const datatype = (type: string) => `export default function mount({ element, value, emit }) {
-  function update(inputs, value) {
-    const result = ${type === 'string' ? 'value' : 'JSON.parse(value)'};
-    ${type === 'number' ? "if (typeof result !== 'number' || !Number.isFinite(result)) throw new Error('Enter a finite JSON number.');" : type === 'boolean' ? "if (typeof result !== 'boolean') throw new Error('Enter true or false.');" : type === 'vector' ? "if (!Array.isArray(result) || !result.every(Number.isFinite)) throw new Error('Enter a numeric JSON vector.');" : type === 'matrix' ? "if (!Array.isArray(result) || !result.length || !result.every(row => Array.isArray(row) && row.length === result[0].length && row.every(Number.isFinite))) throw new Error('Enter a rectangular numeric JSON matrix.');" : type === 'tensor' ? "if (!result || !Array.isArray(result.shape) || !result.shape.length || !result.shape.every(n => Number.isInteger(n) && n > 0) || !Array.isArray(result.data) || !result.data.every(Number.isFinite) || result.shape.reduce((a,b) => a*b, 1) !== result.data.length) throw new Error('Enter {shape: [...], data: [...]} with matching numeric data.');" : ''}
-    element.textContent = typeof result === 'object' ? JSON.stringify(result) : String(result);
-    element.style.cssText = 'font:14px system-ui;padding:12px;word-break:break-word;box-sizing:border-box';
-    emit(result);
-  }
-  update({}, value); return { update };
-}`;
-const slider = `export default function mount({ element, value, emit, setValue }) {
-  const wrapper=document.createElement('label'), control=document.createElement('input'), output=document.createElement('output');
-  control.type='range'; control.setAttribute('aria-label','Source slider');
-  wrapper.style.cssText='display:grid;gap:12px;width:80%'; wrapper.append(control,output); element.append(wrapper);
-  let config;
-  function publish(){output.textContent=control.value;emit(Number(control.value));}
-  control.oninput=()=>{publish();setValue(JSON.stringify({...config,initial:Number(control.value)}));};
-  function update(inputs,value){config=JSON.parse(value);if(!Number.isFinite(config.min)||!Number.isFinite(config.max)||config.max<=config.min||!Number.isFinite(config.step)||config.step<=0)throw new Error('Slider needs min < max and a positive step.');control.min=config.min;control.max=config.max;control.step=config.step;control.value=config.initial;publish();}
-  update({},value);return {update};
-}`;
-const selector = `export default function mount({ element, value, emit, setValue }) {
-  const control=document.createElement('select');control.setAttribute('aria-label','Source selector');control.style.cssText='max-width:90%;padding:8px';element.append(control);let config;
-  function publish(){emit(config.options[control.selectedIndex] ?? null);}
-  control.onchange=()=>{publish();setValue(JSON.stringify({...config,selected:control.selectedIndex}));};
-  function update(inputs,value){config=JSON.parse(value);if(!Array.isArray(config.options)||!config.options.length||config.options.some(v=>!['string','number','boolean'].includes(typeof v)))throw new Error('Provide nonempty scalar options.');control.replaceChildren(...config.options.map(v=>{const o=document.createElement('option');o.textContent=String(v);return o;}));control.selectedIndex=Math.max(0,Math.min(config.options.length-1,config.selected??0));publish();}
-  update({},value);return {update};
-}`;
-const button = `export default function mount({ element, value, emit, setValue }) {
-  const button=document.createElement('button');button.style.cssText='padding:10px 18px;cursor:pointer';element.append(button);let config;
-  button.onclick=()=>{config.count=(config.count??0)+1;emit(config.count);setValue(JSON.stringify(config));button.textContent=config.label+' · '+config.count;};
-  function update(inputs,value){config=JSON.parse(value);button.textContent=(config.label??'Click')+' · '+(config.count??0);emit(config.count??0);}
-  update({},value);return {update};
-}`;
-const clock = `export default function mount({ element, value, emit }) {
-  let timer,period,count=0;
-  function update(inputs,value){const next=Number(value);if(!Number.isFinite(next)||next<16||next>3600000)throw new Error('Counter period must be 16–3600000 ms.');if(next===period)return;clearInterval(timer);period=next;timer=setInterval(()=>{count++;element.textContent=String(count);emit(count);},period);element.textContent=String(count);emit(count);}
-  update({},value);return {update,destroy(){clearInterval(timer);}};
-}`;
-const trigger = `export default function mount({ element, inputs, emit }) {
-  let previous=false,count=0;
-  function update(inputs){const active=Boolean(inputs['in-0']);if(active&&!previous)count++;previous=active;element.textContent='↑ '+count;emit(count);}
-  update(inputs);return {update};
-}`;
-export const wasmSource = `export default async function mount({ element, inputs, emit, wasm, ports }) {
-  if(!wasm)throw new Error('Import a .wasm module in the Code tab.');
-  const bytes=Uint8Array.from(atob(wasm.base64),c=>c.charCodeAt(0));
-  const {instance}=await WebAssembly.instantiate(bytes, {});
-  const fn=instance.exports[wasm.exportName];
-  if(typeof fn!=='function')throw new Error('Choose an exported WebAssembly function.');
-  function update(inputs){const args=ports.filter(p=>p.type==='input').map(p=>inputs[p.id]);if(args.some(x=>typeof x!=='number'||!Number.isFinite(x))){element.textContent='Connect numeric inputs';emit(null);return;}const result=fn(...args);element.textContent=String(result);emit(typeof result==='bigint'?Number(result):result);}
-  update(inputs);return {update};
-}`;
 // A working two-i32 add module; imported binaries replace this in JSON.
 export const exampleWasm = 'AGFzbQEAAAABBwFgAn9/AX8DAgEABwcBA2FkZAAACgkBBwAgACABags=';
 export type JsRecipe = { description?: string; label: string; symbol: string; category: string; source: string; render?: string; value: string; inputs: number; outputs: number };
 export const jsRecipes: Record<string, JsRecipe> = {
   ...operatorRecipes, ...sinkRecipes, ...tokenizerRecipes, ...dataSourceRecipes, ...interactiveRecipes, ...iframeRecipes,
-  ...Object.fromEntries(Object.entries(moduleRecipes).map(([label, source]) => [label, { label: label === 'DOM' ? 'Module' : `${label} example`, symbol: label === 'DOM' ? 'JS' : label === 'LaTeX' ? 'ƒ' : '3D', category: 'JavaScript code blocks', source, value: '1', inputs: 1, outputs: 1 }])),
-  Number: { label: 'Number', symbol: '123', category: 'JavaScript datatypes', source: datatype('number'), value: '1', inputs: 0, outputs: 1 },
-  Boolean: { label: 'Boolean', symbol: 'T/F', category: 'JavaScript datatypes', source: datatype('boolean'), value: 'true', inputs: 0, outputs: 1 },
-  String: { label: 'String', symbol: 'abc', category: 'JavaScript datatypes', source: datatype('string'), value: 'Hello', inputs: 0, outputs: 1 },
-  Vector: { label: 'Vector', symbol: '[x]', category: 'JavaScript datatypes', source: datatype('vector'), value: '[1,2,3]', inputs: 0, outputs: 1 },
-  Matrix: { label: 'Matrix', symbol: '▦', category: 'JavaScript datatypes', source: datatype('matrix'), value: '[[1,2],[3,4]]', inputs: 0, outputs: 1 },
-  Tensor: { label: 'Tensor', symbol: '▧', category: 'JavaScript datatypes', source: datatype('tensor'), value: '[[[1,2],[3,4]],[[5,6],[7,8]]]', inputs: 0, outputs: 1 },
-  Counter: { label: 'Counter', symbol: '◷', category: 'Examples', source: clock, value: '1000', inputs: 0, outputs: 1 },
-  Clock: { label: 'Counter', symbol: '◷', category: 'Examples', source: clock, value: '1000', inputs: 0, outputs: 1 },
-  Trigger: { label: 'Trigger', symbol: '↑', category: 'Examples', source: trigger, value: '', inputs: 1, outputs: 1 },
-  Slider: { label: 'Slider', symbol: '☷', category: 'JavaScript sources', source: slider, value: '{"min":0,"max":100,"step":1,"initial":50}', inputs: 0, outputs: 1 },
-  Selector: { label: 'Selector', symbol: '▾', category: 'JavaScript sources', source: selector, value: '{"options":["A","B","C"],"selected":0}', inputs: 0, outputs: 1 },
-  Button: { label: 'Button', symbol: '↖', category: 'JavaScript sources', source: button, value: '{"label":"Click","count":0}', inputs: 0, outputs: 1 },
-  WebAssembly: { label: 'WebAssembly', symbol: 'WA', category: 'JavaScript code blocks', source: wasmSource, value: '', inputs: 2, outputs: 1 },
+  ...Object.fromEntries(['DOM','LaTeX','Three.js'].map(label => [label, { label: label === 'DOM' ? 'Module' : `${label} example`, symbol: label === 'DOM' ? 'JS' : label === 'LaTeX' ? 'ƒ' : '3D', category: 'JavaScript code blocks', source:'', value: '1', inputs: 1, outputs: 1 }])),
+  MatrixActivation: {label:'Matrix activation controls',symbol:'αβ',category:'Examples',source:'',value:'[[-3,-2,-1,0,1,2],[3,-4,5,-6,7,-8],[0,2,-2,4,-4,6]]',inputs:1,outputs:1},
+  Number: { label: 'Number', symbol: '123', category: 'JavaScript datatypes', source: '', value: '1', inputs: 0, outputs: 1 },
+  Boolean: { label: 'Boolean', symbol: 'T/F', category: 'JavaScript datatypes', source: '', value: 'true', inputs: 0, outputs: 1 },
+  String: { label: 'String', symbol: 'abc', category: 'JavaScript datatypes', source: '', value: 'Hello', inputs: 0, outputs: 1 },
+  Vector: { label: 'Vector', symbol: '[x]', category: 'JavaScript datatypes', source: '', value: '[1,2,3]', inputs: 0, outputs: 1 },
+  Matrix: { label: 'Matrix', symbol: '▦', category: 'JavaScript datatypes', source: '', value: '[[1,2],[3,4]]', inputs: 0, outputs: 1 },
+  Tensor: { label: 'Tensor', symbol: '▧', category: 'JavaScript datatypes', source: '', value: '[[[1,2],[3,4]],[[5,6],[7,8]]]', inputs: 0, outputs: 1 },
+  Counter: { label: 'Counter', symbol: '◷', category: 'Examples', source: '', value: '1000', inputs: 0, outputs: 1 },
+  Clock: { label: 'Counter', symbol: '◷', category: 'Examples', source: '', value: '1000', inputs: 0, outputs: 1 },
+  Trigger: { label: 'Trigger', symbol: '↑', category: 'Examples', source: '', value: '', inputs: 1, outputs: 1 },
+  Slider: { label: 'Slider', symbol: '☷', category: 'JavaScript sources', source: '', value: '{"min":0,"max":100,"step":1,"initial":50}', inputs: 0, outputs: 1 },
+  Selector: { label: 'Selector', symbol: '▾', category: 'JavaScript sources', source: '', value: '{"options":["A","B","C"],"selected":0}', inputs: 0, outputs: 1 },
+  Button: { label: 'Button', symbol: '↖', category: 'JavaScript sources', source: '', value: '{"label":"Click","count":0}', inputs: 0, outputs: 1 },
+  WebAssembly: { label: 'WebAssembly', symbol: 'WA', category: 'JavaScript code blocks', source: '', value: '', inputs: 2, outputs: 1 },
 } satisfies Record<string, { label: string; symbol: string; category: string; source: string; render?: string; value: string; inputs: number; outputs: number }>;
+// Catalog and inserted blocks expose exactly the same full functions.
+for(const[name,recipe]of Object.entries(jsRecipes)){
+  const standard=standardRecipes[name];
+  recipe.source=completeFunction(standard?.logic??recipe.source,'run');
+  recipe.render=completeFunction(standard?.render??recipe.render??defaultRender,'render');
+}
+export const wasmSource=standardRecipes.WebAssembly.logic;
 export function applyJsRecipe(node: BlockNode, name: string): BlockNode {
   const recipe = jsRecipes[name as keyof typeof jsRecipes];
   if (!recipe) throw new Error('Unknown JavaScript recipe.');
@@ -87,7 +43,7 @@ export function applyJsRecipe(node: BlockNode, name: string): BlockNode {
     ...Array.from({ length: recipe.outputs }, (_, i) => ({ id: `out-${i}`, name: 'out', type: 'output' as const, side: 'right' as const, variable: `output${i + 1}` })),
   ];
   const { render: _render, state: _state, ...data } = node.data;
-  const result: BlockNode = { ...node, data: { ...data, kind: 'javascript', recipe: name, label: recipe.label, description: recipe.description ?? data.description, module: recipe.source, ...('render' in recipe ? { render: recipe.render as string, state: {} } : {}), value: recipe.value, ports, ...((name === 'Counter' || name in splitRecipes) ? { module: splitRecipes[name === 'Counter' ? 'Clock' : name].logic, render: '// React scope: inputs, state, block, modules; run() controls outputs.\n' + splitRecipes[name === 'Counter' ? 'Clock' : name].render, state: {} } : {}), ...(name === 'DOM' ? { module: defaultLogic, render: defaultRender, state: {} } : {}), ...(name === 'WebAssembly' ? { wasm: { filename: 'add.wasm', base64: exampleWasm, exportName: 'add' } } : {}) } };
+  const result: BlockNode = { ...node, data: { ...data, kind: 'javascript', renderEnabled:true, recipe: name, label: recipe.label, description: recipe.description ?? data.description, module: recipe.source, ...('render' in recipe ? { render: recipe.render as string, state: {} } : {}), value: recipe.value, ports, ...(name === 'WebAssembly' ? { wasm: { filename: 'add.wasm', base64: exampleWasm, exportName: 'add' } } : {}) } };
   if (result.data.render !== undefined) { result.data.module = completeFunction(result.data.module ?? '', 'run'); result.data.render = completeFunction(result.data.render, 'render'); }
   return result;
 }
@@ -97,142 +53,3 @@ export const exampleLibraries = {
   LibraryBadge: demoLibrary,
   'Three.js': { alias: 'THREE', url: 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js' },
 } satisfies Record<string, { alias: string; url?: string; source?: string }>;
-const splitRecipes: Record<string, { logic: string; render: string }> = {
-  ...Object.fromEntries(['number', 'boolean', 'string', 'vector', 'matrix', 'tensor'].map(type => {
-    const legacy = datatype(type);
-    const validation = legacy.slice(legacy.indexOf('    const result'), legacy.indexOf('    element.textContent'));
-    return [type[0].toUpperCase() + type.slice(1), {
-      logic: ['number', 'vector', 'matrix', 'tensor'].includes(type)
-        ? `await modules.tensorMath.ready;
-const result = modules.tensorMath.parse(value);
-const rank = modules.tensorMath.shape(result).length;
-${type === 'number' ? "if (rank !== 0) throw new Error('Enter a finite number.');" : type === 'vector' ? "if (rank !== 1) throw new Error('Enter a numeric vector.');" : type === 'matrix' ? "if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');" : "if (rank < 1) throw new Error('Enter a nested numeric tensor list.');"}
-state.result = result;
-emit(result);
-await render();`
-        : validation.trim() + '\nstate.result = result;\nemit(result);\nawait render();',
-      render: ['number', 'vector', 'matrix', 'tensor'].includes(type) ? numericRender : `// state.result: the validated ${type} source value.
-return <span style={{fontSize:18}}>{String(state.result)}</span>;`,
-    }];
-  })),
-  Slider: {
-    logic: `state.config = JSON.parse(value);
-const config = state.config;
-if (!Number.isFinite(config.min) || !Number.isFinite(config.max) || config.max <= config.min || !Number.isFinite(config.step) || config.step <= 0) throw new Error('Slider needs min < max and a positive step.');
-state.result = Math.max(config.min, Math.min(config.max, Number(config.initial)));
-emit(state.result);
-await render();`,
-    render: `// state.config: { min, max, step, initial }; state.result: current numeric value.
-// Slider is the same shadcn/Radix component used by the editor.
-return <div style={{ width: '100%', padding: 12, display: 'grid', gap: 14 }}>
-  <Slider aria-label="Source slider" min={state.config.min} max={state.config.max}
-    step={state.config.step} value={[state.result]}
-    onValueChange={([initial]) => setValue(JSON.stringify({ ...state.config, initial }))}/>
-  <output style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{state.result}</output>
-</div>;`,
-  },
-  Selector: {
-    logic: `state.config = JSON.parse(value);
-const config = state.config;
-if (!Array.isArray(config.options) || !config.options.length || config.options.some(v => !['string', 'number', 'boolean'].includes(typeof v))) throw new Error('Provide nonempty scalar options.');
-state.selected = Math.max(0, Math.min(config.options.length - 1, config.selected ?? 0));
-emit(config.options[state.selected]);
-await render();`,
-    render: `// state.config.options: scalar choices; state.selected: selected zero-based index.
-// Customize the shadcn SelectTrigger, SelectItem or surrounding layout.
-return <Select value={String(state.selected)} onValueChange={selected => setValue(JSON.stringify({ ...state.config, selected: Number(selected) }))}>
-  <SelectTrigger aria-label="Source selector"><SelectValue/></SelectTrigger>
-  <SelectContent position="popper">{state.config.options.map((option, index) =>
-    <SelectItem key={index} value={String(index)}>{String(option)}</SelectItem>
-  )}</SelectContent>
-</Select>;`,
-  },
-  Button: {
-    logic: `state.config = JSON.parse(value);
-emit(state.config.count ?? 0);
-await render();`,
-    render: `// state.config: { label, count }. Clicks update the saved Parameter and run Code.
-// Try variant="outline" or size="sm" on this shadcn Button.
-return <Button onClick={() => setValue(JSON.stringify({ ...state.config, count: (state.config.count ?? 0) + 1 }))}>
-  {state.config.label ?? 'Click'} · {state.config.count ?? 0}
-</Button>;`,
-  },
-  Trigger: {
-    logic: `const active = Boolean(inputs.input1);
-state.count ??= 0;
-if (active && !state.previous) state.count++;
-state.previous = active;
-emit(state.count);
-await render();`,
-    render: `// state.count: rising edges counted in Code; state.previous: prior input truthiness.
-return <strong style={{fontSize:24}}>↑ {state.count}</strong>;`,
-  },
-  Clock: {
-    logic: `const period = Number(value);
-if (!Number.isFinite(period) || period < 16 || period > 3600000) throw new Error('Counter period must be 16–3600000 ms.');
-state.count ??= 0;
-emit(state.count);
-await render();
-const timer = setInterval(() => {
-  state.count++;
-  emit(state.count);
-  render();
-}, period);
-onCleanup(() => clearInterval(timer));`,
-    render: `// state.count: saved tick count. Number(value) sets the period in milliseconds.
-return <strong style={{fontSize:24,fontVariantNumeric:'tabular-nums'}}>{state.count}</strong>;`,
-  },
-  'Three.js': {
-    logic: `state.speed = Number(inputs.input1 ?? value) || 0;
-emit(state.speed);
-await render();`,
-    render: `// state.speed: input-controlled rotation speed. Tune camera, material or geometry.
-const host = useRef(null);
-useEffect(() => {
-  const THREE = modules.THREE;
-  if (!THREE) throw new Error('Import THREE in Libraries.');
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.z = 4;
-  const view = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  const geometry = new THREE.BoxGeometry();
-  const material = new THREE.MeshNormalMaterial();
-  const cube = new THREE.Mesh(geometry, material);
-  scene.add(cube);
-  host.current.append(view.domElement);
-  const resize = new ResizeObserver(() => {
-    const { clientWidth: w, clientHeight: h } = host.current;
-    view.setSize(w, h); camera.aspect = w / (h || 1); camera.updateProjectionMatrix();
-  });
-  resize.observe(host.current);
-  const clock = new THREE.Clock();
-  view.setAnimationLoop(() => {
-    cube.rotation.y += clock.getDelta() * state.speed;
-    cube.rotation.x = 0.4; view.render(scene, camera);
-  });
-  return () => { resize.disconnect(); view.setAnimationLoop(null); geometry.dispose(); material.dispose(); view.dispose(); view.domElement.remove(); };
-}, [modules.THREE]);
-return <div ref={host} style={{width:'100%',height:'100%'}}/>;`,
-  },
-  LaTeX: {
-    logic: `state.result = Number(inputs.input1 ?? value) ** 2;
-emit(state.result);
-await render();`,
-    render: `// state.result: input squared in Code. latex() uses bundled KaTeX / MathML.
-// Change the expression here; computations and emitted outputs stay in Code.
-return <Latex tex={'f(x) = x^2 = ' + state.result} fontSize={24}/>;`,
-  },
-  WebAssembly: {
-    logic: `if (!wasm) throw new Error('Import a .wasm binary in Code.');
-const bytes = Uint8Array.from(atob(wasm.base64), c => c.charCodeAt(0));
-const { instance } = await WebAssembly.instantiate(bytes, {});
-const args = ports.filter(p => p.type === 'input').map(p => inputs[p.id]);
-state.result = args.every(x => typeof x === 'number' && Number.isFinite(x))
-  ? instance.exports[wasm.exportName](...args) : null;
-if (typeof state.result === 'bigint') state.result = Number(state.result);
-emit(state.result);
-await render();`,
-    render: `// state.result: finite numeric Wasm output, or null while inputs are missing.
-return <span style={{fontSize:24}}>{state.result === null ? 'Connect numeric inputs' : String(state.result)}</span>;`,
-  },
-};

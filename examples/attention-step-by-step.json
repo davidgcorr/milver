@@ -43,10 +43,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  // value: multiline text, preserved exactly, including whitespace.\n  if (value.length > 10000) throw new Error('Text sources support up to 10,000 characters.');\n  state.text = value;\n  emit(value);\n  await render();\n}",
-        "recipe": "Text",
+        "renderEnabled": true,
         "render": "function render() {\n  // state.text: source text. Change typography or replace this preview with JSX.\n  return <pre style={{margin:0,padding:14,font:'14px system-ui',whiteSpace:'pre-wrap',overflowWrap:'anywhere',maxHeight:'100%',overflow:'auto'}}>{state.text}</pre>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Text",
+        "module": "async function run() {\n  // value: multiline text, preserved exactly, including whitespace.\n  if (value.length > 10000) throw new Error('Text sources support up to 10,000 characters.');\n  state.text = value;\n  emit(value);\n  await render();\n}"
       }
     },
     {
@@ -80,10 +81,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  // An educational tokenizer with an editable vocabulary, not a pretrained model.\n  const config = JSON.parse(value);\n  if (!Array.isArray(config.vocabulary) || config.vocabulary[0] !== '<unk>' || !config.vocabulary.every(token => typeof token === 'string' && token.length > 0) || new Set(config.vocabulary).size !== config.vocabulary.length) throw new Error('Vocabulary must contain unique strings, starting with <unk>.');\n  const raw = inputs.input1 ?? config.text ?? '';\n  if (typeof raw !== 'string') throw new Error('Connect a text input.');\n  const text = config.lowercase === false ? raw : raw.toLowerCase();\n  state.vocabulary = config.vocabulary;\n  // Split words and punctuation, then look up IDs in the dictionary.\n  state.tokens = text.match(/[\\p{L}\\p{N}]+|[^\\s\\p{L}\\p{N}]/gu) ?? [];\n  state.ids = state.tokens.map(token => Math.max(0, config.vocabulary.indexOf(token)));\n  emit(state.ids);\n  await render();\n}",
-        "recipe": "WordTokenizer",
+        "renderEnabled": true,
         "render": "function render() {\n  // state.tokens: text pieces; state.ids: integer vocabulary IDs.\n  // state.vocabulary: index = token ID. Tune colors, spacing or font size here.\n  return <div style={{padding:14, width:'100%', boxSizing:'border-box', fontFamily:'system-ui'}}>\n    <div style={{display:'flex',flexWrap:'wrap',gap:6}}>{(state.tokens ?? []).slice(0,40).map((token,i) =>\n      <div key={i} style={{border:'1px solid #a3a3a3',borderRadius:6,padding:'6px 9px',textAlign:'center'}}>\n        <div style={{fontSize:14}}>{token}</div><small style={{color:'#737373'}}>ID {state.ids[i]}</small>\n      </div>)}</div>\n    <div style={{fontSize:10,color:'#737373',marginTop:10}}>Vocabulary: {(state.vocabulary ?? []).map((token,id) => id + ': ' + token).join(' · ')}</div>\n  </div>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "WordTokenizer",
+        "module": "async function run() {\n  // An educational tokenizer with an editable vocabulary, not a pretrained model.\n  const config = JSON.parse(value);\n  if (!Array.isArray(config.vocabulary) || config.vocabulary[0] !== '<unk>' || !config.vocabulary.every(token => typeof token === 'string' && token.length > 0) || new Set(config.vocabulary).size !== config.vocabulary.length) throw new Error('Vocabulary must contain unique strings, starting with <unk>.');\n  const raw = inputs.input1 ?? config.text ?? '';\n  if (typeof raw !== 'string') throw new Error('Connect a text input.');\n  const text = config.lowercase === false ? raw : raw.toLowerCase();\n  state.vocabulary = config.vocabulary;\n  // Split words and punctuation, then look up IDs in the dictionary.\n  state.tokens = text.match(/[\\p{L}\\p{N}]+|[^\\s\\p{L}\\p{N}]/gu) ?? [];\n  state.ids = state.tokens.map(token => Math.max(0, config.vocabulary.indexOf(token)));\n  emit(state.ids);\n  await render();\n}"
       }
     },
     {
@@ -117,10 +119,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  // Each token ID selects one row from the editable embedding table.\n  const config = JSON.parse(value);\n  const ids = inputs.input1 ?? config.ids;\n  const table = config.table;\n  if (!Array.isArray(table) || !table.length || !table.every(row => Array.isArray(row) && row.length > 0 && row.length === table[0].length && row.every(Number.isFinite))) throw new Error('Enter a rectangular, finite embedding table.');\n  if (!Array.isArray(ids) || !ids.every(id => Number.isInteger(id) && id >= 0 && id < table.length)) throw new Error('Token IDs must index rows in the embedding table.');\n  state.result = ids.map(id => [...table[id]]);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "Embedding",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Embedding",
+        "module": "async function run() {\n  // Each token ID selects one row from the editable embedding table.\n  const config = JSON.parse(value);\n  const ids = inputs.input1 ?? config.ids;\n  const table = config.table;\n  if (!Array.isArray(table) || !table.length || !table.every(row => Array.isArray(row) && row.length > 0 && row.length === table[0].length && row.every(Number.isFinite))) throw new Error('Enter a rectangular, finite embedding table.');\n  if (!Array.isArray(ids) || !ids.every(id => Number.isInteger(id) && id >= 0 && id < table.length)) throw new Error('Token IDs must index rows in the embedding table.');\n  state.result = ids.map(id => [...table[id]]);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -147,10 +150,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
+        "state": {},
         "recipe": "Matrix",
-        "render": "// React scope: inputs, state, block, modules; run() controls outputs.\nfunction render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -191,10 +195,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "MatMul",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "MatMul",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -221,10 +226,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
+        "state": {},
         "recipe": "Matrix",
-        "render": "// React scope: inputs, state, block, modules; run() controls outputs.\nfunction render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -265,10 +271,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "MatMul",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "MatMul",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -295,10 +302,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
+        "state": {},
         "recipe": "Matrix",
-        "render": "// React scope: inputs, state, block, modules; run() controls outputs.\nfunction render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -339,10 +347,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "MatMul",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "MatMul",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -376,10 +385,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.transpose(inputs.input1 ?? config.a);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "Transpose",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Transpose",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.transpose(inputs.input1 ?? config.a);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -420,10 +430,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "MatMul",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "MatMul",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -457,10 +468,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const gain = modules.tensorMath.parse(value);\n  if (typeof gain !== 'number') throw new Error('Enter a numeric gain.');\n  state.result = modules.tensorMath.multiply(inputs.input1 ?? 0, gain);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "Gain",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Gain",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const gain = modules.tensorMath.parse(value);\n  if (typeof gain !== 'number') throw new Error('Enter a numeric gain.');\n  state.result = modules.tensorMath.multiply(inputs.input1 ?? 0, gain);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -494,10 +506,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.softmax(inputs.input1 ?? config.a);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "Softmax",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Softmax",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.softmax(inputs.input1 ?? config.a);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -538,10 +551,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "MatMul",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "MatMul",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -568,10 +582,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n  await render();\n}",
+        "renderEnabled": true,
+        "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
+        "state": {},
         "recipe": "Matrix",
-        "render": "// React scope: inputs, state, block, modules; run() controls outputs.\nfunction render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  const result = modules.tensorMath.parse(value);\n  const rank = modules.tensorMath.shape(result).length;\n  if (rank !== 2) throw new Error('Enter a rectangular numeric matrix.');\n  state.result = result;\n  emit(result);\n}"
       }
     },
     {
@@ -612,10 +627,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}",
-        "recipe": "MatMul",
+        "renderEnabled": true,
         "render": "function render({ state }) {\n  // state.result: scalar, vector, matrix or tensor, computed by run().\n  const fontSize = 24;\n  const precision = 4;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision}/>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "MatMul",
+        "module": "async function run() {\n  await modules.tensorMath.ready;\n  // Inputs override the example defaults stored in Parameter.\n  const config = JSON.parse(value);\n  if (!modules.tensorMath) throw new Error('Import the math library from Libraries.');\n  state.result = modules.tensorMath.matmul(inputs.input1 ?? config.a, inputs.input2 ?? config.b);\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -642,13 +658,13 @@
             "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
         },
-        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}",
-        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
-        "state": {}
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     }
   ],

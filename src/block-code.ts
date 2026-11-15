@@ -18,7 +18,7 @@ export type ControlledPath = typeof controlledPaths[number];
 export const isControlled = (data: BlockData, path: string) => data.controlledProperties?.includes(path as ControlledPath) ?? false;
 
 export function completeFunction(source: string, name: 'run' | 'render'): string {
-  if (new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`).test(source)) return source.trim().replace(/^export\s+(?:default\s+)?/, '');
+  if (new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`).test(source)) return source.trim().replace(/\bexport\s+(?:default\s+)?(?=(?:async\s+)?function\s+(?:run|render)\s*\()/, '');
   return `${name === 'run' || /\bawait\b/.test(source) ? 'async ' : ''}function ${name}() {\n${source.split('\n').map(line => '  ' + line).join('\n')}\n}`;
 }
 export function insertFunctionSnippet(source: string, snippet: string): string {
@@ -27,23 +27,33 @@ export function insertFunctionSnippet(source: string, snippet: string): string {
 }
 
 // The lifecycle adapter stays out of the two user-editable function bodies.
-export function buildBlockModule(logic: string, renderSource: string): string {
+export function buildBlockModule(logic: string, renderSource: string, renderEnabled = true): string {
   const runSource = completeFunction(logic, 'run');
-  const drawSource = completeFunction(renderSource, 'render');
+  const drawSource = completeFunction(renderEnabled ? renderSource : 'function render() { return null; }', 'render');
   // Saved async/imperative renderers keep their lifecycle. New synchronous JSX
   // renderers are mounted as real React components, so hooks are valid.
   const component = !/\basync\s+function\s+render\s*\(/.test(drawSource)
     && (!/\belement\s*[.[]|\blatex\s*\(\s*element\b/.test(drawSource) || /<[A-Za-z>]|React\.createElement/.test(drawSource));
   const source = `export default async function mount(api) {
   let { inputs = {}, variables = {}, value } = api;
-  const { element, state = {}, modules = {}, emit, emitEvent, setValue, setProperty, wasm, ports, renderer } = api;
+  const { element, state = {}, modules = {}, emit, emitEvent, setValue: persistValue, setProperty, wasm, ports, renderer } = api;
   let block = { ...api.block, value, state };
   const { React, Button, Slider, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Latex, MathValue, Iframe, BlockRenderBoundary, latex, describeValue, formatValue } = api.ui ?? {};
   const { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } = React ?? {};
   const actions = {};
+  let rerun = false;
+  const pendingValues = new Set();
+  const key = value => JSON.stringify(value, (_,x) => typeof x === 'number' && !Number.isFinite(x) ? String(x) : x);
+  const properties = ({state,value,...rest} = {}) => rest;
   let reactRoot, cleanup, disposed = false, executing = false, queued = false, renderedDuringRun = false;
   let disposers = [];
   const onCleanup = fn => disposers.push(fn);
+  const setValue = next => {
+    if (typeof next !== 'string' || next === value) return;
+    value = next; block = { ...block, value }; pendingValues.add(next); if(pendingValues.size>64)pendingValues.delete(pendingValues.values().next().value); persistValue?.(next);
+    if (executing) rerun = true;
+    else void execute().catch(error => api.reportError?.(error));
+  };
   const setState = patch => { const next = typeof patch === 'function' ? patch(state) : patch; Object.assign(state, next); requestRender(); };
   const scope = () => ({ ...api.ui, element, wasm, inputs, variables, value, state, setState, block, modules, actions, emit, emitEvent, setValue, setProperty, onCleanup, render, renderer, ports });
   const View = (${drawSource});
@@ -72,17 +82,26 @@ export function buildBlockModule(logic: string, renderSource: string): string {
   }
   const unsubscribe = ${component} ? api.subscribeState?.(requestRender) : undefined;
   async function execute() {
+    if (disposed) return;
+    if (executing) { rerun = true; return; }
+    do { rerun = false;
     executing = true; renderedDuringRun = false;
     try {
       for (const dispose of disposers.splice(0)) await dispose();
       await run(scope());
     } finally { executing = false; }
     if (${component} || !renderedDuringRun) await render();
+    } while (rerun && !disposed);
   }
   try { await execute(); }
   catch (error) { disposed = true; unsubscribe?.(); reactRoot?.unmount(); for (const dispose of disposers.splice(0)) await dispose(); throw error; }
   return {
     async update(nextInputs, nextValue, nextVariables, nextBlock) {
+      if(pendingValues.has(nextValue)) {
+        pendingValues.delete(nextValue);
+        nextValue = value;
+        if(key(nextInputs)===key(inputs) && key(nextVariables??{})===key(variables) && (!nextBlock || key(properties(nextBlock))===key(properties(block)))) return;
+      }
       inputs = nextInputs; value = nextValue; variables = nextVariables ?? {};
       block = { ...block, ...nextBlock, value, state };
       await execute();

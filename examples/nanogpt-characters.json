@@ -43,10 +43,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  // value: multiline text, preserved exactly, including whitespace.\n  if (value.length > 10000) throw new Error('Text sources support up to 10,000 characters.');\n  state.text = value;\n  emit(value);\n  await render();\n}",
-        "recipe": "Text",
+        "renderEnabled": true,
         "render": "function render() {\n  // state.text: source text. Change typography or replace this preview with JSX.\n  return <pre style={{margin:0,padding:14,font:'14px system-ui',whiteSpace:'pre-wrap',overflowWrap:'anywhere',maxHeight:'100%',overflow:'auto'}}>{state.text}</pre>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "Text",
+        "module": "async function run() {\n  // value: multiline text, preserved exactly, including whitespace.\n  if (value.length > 10000) throw new Error('Text sources support up to 10,000 characters.');\n  state.text = value;\n  emit(value);\n  await render();\n}"
       }
     },
     {
@@ -73,10 +74,11 @@
             "variable": "output1"
           }
         ],
-        "module": "async function run() {\n  // config.text: raw CSV; header selects records versus rows.\n  // numeric converts finite numeric cells so row output connects directly to math blocks.\n  const config = JSON.parse(value);\n  const parseCsv = function parseCsv(text, options = {}) {\n  \tif (typeof text !== \"string\" || text.length > 1e5) throw new Error(\"CSV must be text with at most 100,000 characters.\");\n  \tconst delimiter = options.delimiter ?? \",\";\n  \tif (delimiter.length !== 1 || /[\"\\r\\n]/.test(delimiter)) throw new Error(\"Choose a single CSV delimiter.\");\n  \ttext = text.replace(/^\\uFEFF/, \"\");\n  \tif (!text) return [];\n  \tconst rows = [];\n  \tlet row = [], field = \"\", quoted = false, closed = false;\n  \tconst cell = () => {\n  \t\trow.push(field);\n  \t\tfield = \"\";\n  \t\tclosed = false;\n  \t};\n  \tconst line = () => {\n  \t\tcell();\n  \t\trows.push(row);\n  \t\trow = [];\n  \t};\n  \tfor (let i = 0; i < text.length; i++) {\n  \t\tconst char = text[i];\n  \t\tif (quoted) {\n  \t\t\tif (char === \"\\\"\") {\n  \t\t\t\tif (text[i + 1] === \"\\\"\") {\n  \t\t\t\t\tfield += \"\\\"\";\n  \t\t\t\t\ti++;\n  \t\t\t\t} else {\n  \t\t\t\t\tquoted = false;\n  \t\t\t\t\tclosed = true;\n  \t\t\t\t}\n  \t\t\t} else field += char;\n  \t\t} else if (char === delimiter) cell();\n  \t\telse if (char === \"\\n\" || char === \"\\r\") {\n  \t\t\tline();\n  \t\t\tif (char === \"\\r\" && text[i + 1] === \"\\n\") i++;\n  \t\t} else if (char === \"\\\"\") {\n  \t\t\tif (field || closed) throw new Error(\"Unexpected quote in CSV.\");\n  \t\t\tquoted = true;\n  \t\t} else {\n  \t\t\tif (closed) throw new Error(\"Unexpected text after a quoted CSV field.\");\n  \t\t\tfield += char;\n  \t\t}\n  \t};\n  \tif (quoted) throw new Error(\"Unclosed quoted CSV field.\");\n  \tif (field || row.length || closed || !/[\\r\\n]$/.test(text)) line();\n  \tconst width = rows[0]?.length ?? 0;\n  \tif (rows.length > 500 || width > 32 || rows.length * width > 1e4) throw new Error(\"CSV preview supports up to 500 rows, 32 columns and 10,000 cells.\");\n  \tif (rows.some((row) => row.length !== width)) throw new Error(\"CSV rows must have the same number of columns.\");\n  \tconst convert = (cell) => options.numeric !== false && cell.trim() && /^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?$/i.test(cell.trim()) && Number.isFinite(Number(cell)) ? Number(cell) : cell;\n  \tif (!options.header) return rows.map((row) => row.map(convert));\n  \tconst headers = rows.shift().map((header) => header.trim());\n  \tif (new Set(headers).size !== width || headers.some((header) => !header || header.length > 128 || [\n  \t\t\"__proto__\",\n  \t\t\"constructor\",\n  \t\t\"prototype\"\n  \t].includes(header))) throw new Error(\"CSV headers must be unique, nonempty, safe names.\");\n  \treturn rows.map((row) => Object.fromEntries(headers.map((header, i) => [header, convert(row[i])])));\n  };\n  state.result = parseCsv(config.text, config);\n  state.columns = config.header && state.result.length ? Object.keys(state.result[0]) : [];\n  emit(state.result);\n  await render();\n}",
-        "recipe": "CSV",
+        "renderEnabled": true,
         "render": "function render() {\n  // state.result: an array of rows, or records when header is enabled.\n  // Tune row count, spacing, and typography below. All values are rendered as text.\n  const rows = (state.result ?? []).slice(0,8);\n  return <div style={{padding:10,width:'100%',boxSizing:'border-box',overflow:'auto',maxHeight:'100%'}}><table style={{width:'100%',borderCollapse:'collapse',font:'12px system-ui'}}>\n  {state.columns.length > 0 && <thead><tr>{state.columns.map(column => <th key={column} style={{padding:5,textAlign:'left'}}>{column}</th>)}</tr></thead>}\n  <tbody>{rows.map((row,i) => <tr key={i}>{(Array.isArray(row) ? row : Object.values(row)).map((cell,j) => <td key={j} style={{padding:5,borderBottom:'1px solid #a3a3a333'}}>{String(cell)}</td>)}</tr>)}</tbody></table></div>;\n}",
-        "state": {}
+        "state": {},
+        "recipe": "CSV",
+        "module": "async function run() {\n  // config.text: raw CSV; header selects records versus rows.\n  // numeric converts finite numeric cells so row output connects directly to math blocks.\n  const config = JSON.parse(value);\n  const parseCsv = function parseCsv(text, options = {}) {\n  \tif (typeof text !== \"string\" || text.length > 1e5) throw new Error(\"CSV must be text with at most 100,000 characters.\");\n  \tconst delimiter = options.delimiter ?? \",\";\n  \tif (delimiter.length !== 1 || /[\"\\r\\n]/.test(delimiter)) throw new Error(\"Choose a single CSV delimiter.\");\n  \ttext = text.replace(/^\\uFEFF/, \"\");\n  \tif (!text) return [];\n  \tconst rows = [];\n  \tlet row = [], field = \"\", quoted = false, closed = false;\n  \tconst cell = () => {\n  \t\trow.push(field);\n  \t\tfield = \"\";\n  \t\tclosed = false;\n  \t};\n  \tconst line = () => {\n  \t\tcell();\n  \t\trows.push(row);\n  \t\trow = [];\n  \t};\n  \tfor (let i = 0; i < text.length; i++) {\n  \t\tconst char = text[i];\n  \t\tif (quoted) {\n  \t\t\tif (char === \"\\\"\") {\n  \t\t\t\tif (text[i + 1] === \"\\\"\") {\n  \t\t\t\t\tfield += \"\\\"\";\n  \t\t\t\t\ti++;\n  \t\t\t\t} else {\n  \t\t\t\t\tquoted = false;\n  \t\t\t\t\tclosed = true;\n  \t\t\t\t}\n  \t\t\t} else field += char;\n  \t\t} else if (char === delimiter) cell();\n  \t\telse if (char === \"\\n\" || char === \"\\r\") {\n  \t\t\tline();\n  \t\t\tif (char === \"\\r\" && text[i + 1] === \"\\n\") i++;\n  \t\t} else if (char === \"\\\"\") {\n  \t\t\tif (field || closed) throw new Error(\"Unexpected quote in CSV.\");\n  \t\t\tquoted = true;\n  \t\t} else {\n  \t\t\tif (closed) throw new Error(\"Unexpected text after a quoted CSV field.\");\n  \t\t\tfield += char;\n  \t\t}\n  \t};\n  \tif (quoted) throw new Error(\"Unclosed quoted CSV field.\");\n  \tif (field || row.length || closed || !/[\\r\\n]$/.test(text)) line();\n  \tconst width = rows[0]?.length ?? 0;\n  \tif (rows.length > 500 || width > 32 || rows.length * width > 1e4) throw new Error(\"CSV preview supports up to 500 rows, 32 columns and 10,000 cells.\");\n  \tif (rows.some((row) => row.length !== width)) throw new Error(\"CSV rows must have the same number of columns.\");\n  \tconst convert = (cell) => options.numeric !== false && cell.trim() && /^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:e[+-]?\\d+)?$/i.test(cell.trim()) && Number.isFinite(Number(cell)) ? Number(cell) : cell;\n  \tif (!options.header) return rows.map((row) => row.map(convert));\n  \tconst headers = rows.shift().map((header) => header.trim());\n  \tif (new Set(headers).size !== width || headers.some((header) => !header || header.length > 128 || [\n  \t\t\"__proto__\",\n  \t\t\"constructor\",\n  \t\t\"prototype\"\n  \t].includes(header))) throw new Error(\"CSV headers must be unique, nonempty, safe names.\");\n  \treturn rows.map((row) => Object.fromEntries(headers.map((header, i) => [header, convert(row[i])])));\n  };\n  state.result = parseCsv(config.text, config);\n  state.columns = config.header && state.result.length ? Object.keys(state.result[0]) : [];\n  emit(state.result);\n  await render();\n}"
       }
     },
     {
@@ -99,21 +101,28 @@
             "id": "tokenization-input-0",
             "name": "Text",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           },
           {
             "id": "tokenization-output-0",
             "name": "Token IDs",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           },
           {
             "id": "tokenization-output-1",
             "name": "Vocabulary",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output2"
           }
         ],
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
+        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
         "canvas": {
           "viewport": {
             "x": 80,
@@ -141,13 +150,18 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
-                "exposedSide": "left",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "left"
               }
             },
             {
@@ -174,12 +188,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return [...new Set([...parameters.corpus])].sort((a,b) => a.codePointAt(0)-b.codePointAt(0));\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "DOM",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "DOM"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return [...new Set([...parameters.corpus])].sort((a,b) => a.codePointAt(0)-b.codePointAt(0));\n}"
               }
             },
             {
@@ -220,12 +237,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  if (typeof inputs.text !== 'string') throw new Error('Connect a text prompt.');\n  const chars = [...inputs.text].slice(-parameters.blockSize);\n  if (!chars.length) throw new Error('Enter a nonempty prompt.');\n  const ids = chars.map(char => inputs.vocabulary.indexOf(char));\n  if (ids.some(id => id < 0)) throw new Error('Prompt contains a character outside the corpus vocabulary. Edit the vocabulary corpus.');\n  return ids;\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "DOM",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "DOM"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  if (typeof inputs.text !== 'string') throw new Error('Connect a text prompt.');\n  const chars = [...inputs.text].slice(-parameters.blockSize);\n  if (!chars.length) throw new Error('Enter a nonempty prompt.');\n  const ids = chars.map(char => inputs.vocabulary.indexOf(char));\n  if (ids.some(id => id < 0)) throw new Error('Prompt contains a character outside the corpus vocabulary. Edit the vocabulary corpus.');\n  return ids;\n}"
               }
             },
             {
@@ -248,13 +268,18 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
-                "exposedSide": "right",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "right"
               }
             },
             {
@@ -277,13 +302,18 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
-                "exposedSide": "right",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "right"
               }
             }
           ],
@@ -348,13 +378,13 @@
             "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
         },
-        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}",
-        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
-        "state": {}
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     },
     {
@@ -377,21 +407,28 @@
             "id": "embeddings-input-0",
             "name": "Token IDs",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           },
           {
             "id": "embeddings-input-1",
             "name": "Token table",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input2"
           },
           {
             "id": "embeddings-output-0",
             "name": "Hidden states",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
         ],
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
+        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
         "canvas": {
           "viewport": {
             "x": 80,
@@ -419,13 +456,18 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
-                "exposedSide": "left",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "left"
               }
             },
             {
@@ -448,13 +490,18 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
-                "exposedSide": "left",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "left"
               }
             },
             {
@@ -495,12 +542,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return inputs.ids.map(id => inputs.table[id]);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "Embedding",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "Embedding"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return inputs.ids.map(id => inputs.table[id]);\n}"
               }
             },
             {
@@ -534,12 +584,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return parameters.table.slice(0,inputs.ids.length);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "Embedding",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "Embedding"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return parameters.table.slice(0,inputs.ids.length);\n}"
               }
             },
             {
@@ -580,12 +633,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(inputs.a,inputs.b);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "Add",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "Add"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(inputs.a,inputs.b);\n}"
               }
             },
             {
@@ -608,13 +664,18 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
-                "exposedSide": "right",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "right"
               }
             }
           ],
@@ -691,15 +752,21 @@
             "id": "gpt-block-input-0",
             "name": "Hidden states",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           },
           {
             "id": "gpt-block-output-0",
             "name": "Hidden states",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           }
         ],
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
+        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
         "canvas": {
           "viewport": {
             "x": 80,
@@ -727,13 +794,18 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
-                "exposedSide": "left",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "left"
               }
             },
             {
@@ -767,12 +839,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.layerNorm(inputs.x);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "LayerNorm",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "LayerNorm"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.layerNorm(inputs.x);\n}"
               }
             },
             {
@@ -795,15 +870,21 @@
                     "id": "causal-attention-input-0",
                     "name": "Normalized states",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   },
                   {
                     "id": "causal-attention-output-0",
                     "name": "Attention output",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "canvas": {
                   "viewport": {
                     "x": 80,
@@ -831,13 +912,18 @@
                             "id": "out-0",
                             "name": "out",
                             "type": "output",
-                            "side": "right"
+                            "side": "right",
+                            "variable": "output1"
                           }
                         ],
-                        "exposedSide": "left",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                         "visuals": {
                           "showHeader": false
-                        }
+                        },
+                        "exposedSide": "left"
                       }
                     },
                     {
@@ -871,12 +957,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "MatMul",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "MatMul"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}"
                       }
                     },
                     {
@@ -910,12 +999,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "MatMul",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "MatMul"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}"
                       }
                     },
                     {
@@ -949,12 +1041,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "MatMul",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "MatMul"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}"
                       }
                     },
                     {
@@ -988,12 +1083,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.transpose(inputs.x);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "Transpose",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "Transpose"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.transpose(inputs.x);\n}"
                       }
                     },
                     {
@@ -1034,12 +1132,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.multiply(math.matmul(inputs.q,inputs.kt),0.5);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "MatMul",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "MatMul"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.multiply(math.matmul(inputs.q,inputs.kt),0.5);\n}"
                       }
                     },
                     {
@@ -1073,12 +1174,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return inputs.scores.map((row,i) => row.map((value,j) => j > i ? -Infinity : value));\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "DOM",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "DOM"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return inputs.scores.map((row,i) => row.map((value,j) => j > i ? -Infinity : value));\n}"
                       }
                     },
                     {
@@ -1112,12 +1216,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.softmax(inputs.x);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "Softmax",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "Softmax"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.softmax(inputs.x);\n}"
                       }
                     },
                     {
@@ -1158,12 +1265,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.a,inputs.v);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "MatMul",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "MatMul"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.a,inputs.v);\n}"
                       }
                     },
                     {
@@ -1197,12 +1307,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "MatMul",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "MatMul"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,parameters.weight);\n}"
                       }
                     },
                     {
@@ -1225,13 +1338,18 @@
                             "id": "in-0",
                             "name": "in",
                             "type": "input",
-                            "side": "left"
+                            "side": "left",
+                            "variable": "input1"
                           }
                         ],
-                        "exposedSide": "right",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                         "visuals": {
                           "showHeader": false
-                        }
+                        },
+                        "exposedSide": "right"
                       }
                     }
                   ],
@@ -1374,12 +1492,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(inputs.x,inputs.attention);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "Add",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "Add"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(inputs.x,inputs.attention);\n}"
               }
             },
             {
@@ -1413,12 +1534,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.layerNorm(inputs.x);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "LayerNorm",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "LayerNorm"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.layerNorm(inputs.x);\n}"
               }
             },
             {
@@ -1441,15 +1565,21 @@
                     "id": "mlp-input-0",
                     "name": "Normalized states",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   },
                   {
                     "id": "mlp-output-0",
                     "name": "MLP output",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "canvas": {
                   "viewport": {
                     "x": 80,
@@ -1477,13 +1607,18 @@
                             "id": "out-0",
                             "name": "out",
                             "type": "output",
-                            "side": "right"
+                            "side": "right",
+                            "variable": "output1"
                           }
                         ],
-                        "exposedSide": "left",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                         "visuals": {
                           "showHeader": false
-                        }
+                        },
+                        "exposedSide": "left"
                       }
                     },
                     {
@@ -1517,12 +1652,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(math.matmul(inputs.x,parameters.weight),parameters.bias);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "Linear",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "Linear"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(math.matmul(inputs.x,parameters.weight),parameters.bias);\n}"
                       }
                     },
                     {
@@ -1556,12 +1694,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.gelu(inputs.x);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "GELU",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "GELU"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.gelu(inputs.x);\n}"
                       }
                     },
                     {
@@ -1595,12 +1736,15 @@
                             "variable": "result"
                           }
                         ],
-                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(math.matmul(inputs.x,parameters.weight),parameters.bias);\n}",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "recipe": "Linear",
                         "operation": {
                           "type": "code",
                           "effect": "pure"
                         },
-                        "recipe": "Linear"
+                        "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(math.matmul(inputs.x,parameters.weight),parameters.bias);\n}"
                       }
                     },
                     {
@@ -1623,13 +1767,18 @@
                             "id": "in-0",
                             "name": "in",
                             "type": "input",
-                            "side": "left"
+                            "side": "left",
+                            "variable": "input1"
                           }
                         ],
-                        "exposedSide": "right",
+                        "renderEnabled": false,
+                        "render": "function render() {\n  return null;\n}",
+                        "state": {},
+                        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                         "visuals": {
                           "showHeader": false
-                        }
+                        },
+                        "exposedSide": "right"
                       }
                     }
                   ],
@@ -1708,12 +1857,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(inputs.h,inputs.mlp);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "Add",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "Add"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.add(inputs.h,inputs.mlp);\n}"
               }
             },
             {
@@ -1736,13 +1888,18 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
-                "exposedSide": "right",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "right"
               }
             }
           ],
@@ -1843,33 +2000,42 @@
             "id": "lm-head-input-0",
             "name": "Hidden states",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input1"
           },
           {
             "id": "lm-head-input-1",
             "name": "Token table",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input2"
           },
           {
             "id": "lm-head-input-2",
             "name": "Vocabulary",
             "type": "input",
-            "side": "left"
+            "side": "left",
+            "variable": "input3"
           },
           {
             "id": "lm-head-output-0",
             "name": "Next character",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output1"
           },
           {
             "id": "lm-head-output-1",
             "name": "Probabilities",
             "type": "output",
-            "side": "right"
+            "side": "right",
+            "variable": "output2"
           }
         ],
+        "renderEnabled": false,
+        "render": "function render() {\n  return null;\n}",
+        "state": {},
+        "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
         "canvas": {
           "viewport": {
             "x": 80,
@@ -1897,13 +2063,18 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
-                "exposedSide": "left",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "left"
               }
             },
             {
@@ -1926,13 +2097,18 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
-                "exposedSide": "left",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "left"
               }
             },
             {
@@ -1955,13 +2131,18 @@
                     "id": "out-0",
                     "name": "out",
                     "type": "output",
-                    "side": "right"
+                    "side": "right",
+                    "variable": "output1"
                   }
                 ],
-                "exposedSide": "left",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "left"
               }
             },
             {
@@ -1995,12 +2176,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.layerNorm(inputs.x);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "LayerNorm",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "LayerNorm"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.layerNorm(inputs.x);\n}"
               }
             },
             {
@@ -2034,12 +2218,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return [inputs.x.at(-1)];\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "DOM",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "DOM"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return [inputs.x.at(-1)];\n}"
               }
             },
             {
@@ -2073,12 +2260,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.transpose(inputs.x);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "Transpose",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "Transpose"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.transpose(inputs.x);\n}"
               }
             },
             {
@@ -2119,12 +2309,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,inputs.w);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "MatMul",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "MatMul"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.matmul(inputs.x,inputs.w);\n}"
               }
             },
             {
@@ -2158,12 +2351,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.softmax(inputs.x);\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "Softmax",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "Softmax"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  return math.softmax(inputs.x);\n}"
               }
             },
             {
@@ -2204,12 +2400,15 @@
                     "variable": "result"
                   }
                 ],
-                "module": "// Pure project computation: runs even when its parent canvas is closed.\nexport async function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  const row = inputs.probabilities[0];\n  const id = row.indexOf(Math.max(...row));\n  return inputs.vocabulary[id];\n}",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "recipe": "DOM",
                 "operation": {
                   "type": "code",
                   "effect": "pure"
                 },
-                "recipe": "DOM"
+                "module": "// Pure project computation: runs even when its parent canvas is closed.\nasync function run({ inputs, modules, parameters }) {\n  const math = modules.tensorMath;\n  await math.ready;\n  const row = inputs.probabilities[0];\n  const id = row.indexOf(Math.max(...row));\n  return inputs.vocabulary[id];\n}"
               }
             },
             {
@@ -2232,13 +2431,18 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
-                "exposedSide": "right",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "right"
               }
             },
             {
@@ -2261,13 +2465,18 @@
                     "id": "in-0",
                     "name": "in",
                     "type": "input",
-                    "side": "left"
+                    "side": "left",
+                    "variable": "input1"
                   }
                 ],
-                "exposedSide": "right",
+                "renderEnabled": false,
+                "render": "function render() {\n  return null;\n}",
+                "state": {},
+                "module": "async function run() {\n  // Logic is handled by the project runtime.\n}",
                 "visuals": {
                   "showHeader": false
-                }
+                },
+                "exposedSide": "right"
               }
             }
           ],
@@ -2380,13 +2589,13 @@
             "variable": "input1"
           }
         ],
+        "render": "function render({ state }) {\n  // Quote spaces and newlines so the next character remains visible.\n  return <code style={{fontSize:24}}>{state.result == null ? 'Waiting for prompt' : JSON.stringify(state.result)}</code>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
         },
-        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}",
-        "render": "function render({ state }) {\n  // Quote spaces and newlines so the next character remains visible.\n  return <code style={{fontSize:24}}>{state.result == null ? 'Waiting for prompt' : JSON.stringify(state.result)}</code>;\n}",
-        "state": {}
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     },
     {
@@ -2413,13 +2622,13 @@
             "variable": "input1"
           }
         ],
+        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
+        "state": {},
         "renderer": {
           "precision": 4,
           "slice": 0
         },
-        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}",
-        "render": "function render({ state, renderer }) {\n  // state.result is the input value; tune these defaults or use Properties.\n  const fontSize = renderer?.fontSize ?? 26;\n  const precision = renderer?.precision ?? 4;\n  const slice = renderer?.slice ?? 0;\n  return <MathValue value={state.result} fontSize={fontSize} precision={precision} slice={slice}/>;\n}",
-        "state": {}
+        "module": "async function run() {\n  // state.result: the complete input value; it is shared with render().\n  state.result = inputs.input1 ?? inputs['in-0'] ?? null;\n  await render();\n}"
       }
     }
   ],

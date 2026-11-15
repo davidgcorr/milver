@@ -22,6 +22,8 @@ try {
   add('badge','LibraryBadge',760,560);wire('metric','badge');
   add('events','GeneralView',1140,0);wire('action','events');
   add('ticks','GeneralView',1140,280);wire('pulse','ticks');
+  const activation=add('activation','MatrixActivation',760,840);activation.width=340;activation.height=300;
+  add('activation-view','GeneralView',1140,840);wire('activation','activation-view');
   const diagram={version:1,name:'Interactive blocks · React + inputs',metadata:{author:'milver',updatedAt:'2026-11-14'},modules:[{id:'demo-visual-library',...demoLibrary}],nodes,edges,viewport:{x:300,y:100,zoom:.42}};
   const json=serializeDiagram(diagram);parseDiagram(json);await writeFile(new URL('../examples/interactive-blocks.json',import.meta.url),json+'\n');
 }finally{await server.close();}
