@@ -90,6 +90,10 @@ The first workspace uses a black-and-white Neutral palette. Open the palette ico
 
 The official shadcn CLI generated the components in `src/components/ui/`. Radix provides keyboard interactions, focus management, dialogs, collapsibles, selects, tooltips, and sliders. `components.json` configures future shadcn additions. `src/theme.ts` maps theme settings to semantic tokens.
 
+Block shapes are configured in **Render → Appearance → Block shape**. Choose Rectangle, Circle, Ellipse, Rhombus / diamond, Rhomboid, Polygon (3–16 sides with rotation), or Custom Bézier. Circle fits the smaller dimension; equal width and height fill the bounds. For a custom curve, drag anchors and tangent handles in the preview, or focus a handle and use arrow keys (Shift for finer adjustments). **Add point** splits the segment after the selected anchor without changing the curve; **Remove point** keeps at least three anchors. **Reset curve** restores the default ellipse. Shapes scale when resizing blocks, and ports follow the outline. Interface ports keep their compact circle.
+
+Shape type, polygon settings, Bézier anchors and tangent handles are stored in `data.visuals.shape`. The complete shape is preserved by JSON import/export, nested canvases, saved blocks and project snapshots. SVG, PNG, GIF and live HTML exports use the same outline, port positions and content clipping, including rough mode.
+
 ## JSON ↔ UI
 
 `src/model.ts` defines the versioned schema, templates, validation, serialization, and immutable canvas updates. A diagram contains `version: 1`, `name`, `nodes`, `edges`, `viewport`, and optional `theme` and `modules`.
@@ -104,7 +108,9 @@ Parent blocks use `data.kind: "subsystem"` and `data.canvas: { nodes, edges, vie
 - An `inport` exposes a parent input but has one output inside the canvas.
 - An `outport` exposes a parent output but has one input inside the canvas.
 
-Import validates all nested canvases, interface consistency, connections, dimensions, IDs, viewport values, and theme settings before replacing anything. Limits are 2,000 total blocks, 10,000 total connections, and 16 nested levels. Invalid imports leave the existing diagram untouched. Selection and measured DOM sizes are excluded from JSON at every nesting level.
+Import validates all nested canvases, interface consistency, connections, dimensions, IDs, viewport values, and theme settings before replacing anything. Limits are 2,000 total blocks, 10,000 total connections, and 16 nested levels. Invalid imports leave the existing diagram untouched. Selection and measured DOM sizes are excluded from JSON at every nesting level. JavaScript computations retain their imports, exports, comments and whitespace. Code, Render and library editor drafts are saved separately from active source, included in JSON, and restored without running; use the corresponding Apply button to activate them. Custom interface-block dimensions are also preserved.
+
+Every JSON download path (export dialog, keyboard shortcut and Projects) captures URL libraries plus static imports, re-exports and literal dynamic imports. The JSON editor prepares the same complete document. Sources must be browser-compatible ES modules with CORS access during the first export. Failed downloads, computed dynamic imports and temporary blob module URLs stop the backup with a clear error instead of producing a partial file. Snapshots support up to 256 remote module files, 2 MB per source, and 40 MB of original/resolved source text; an imported snapshot can be re-exported offline. Unapplied drafts are backed up as text and are not fetched or executed.
 
 Theme example:
 
@@ -124,7 +130,7 @@ Use the download icon at the top right to open the export dialog. JSON remains a
 | SVG | Real vector paths, shapes, and text; no HTML foreignObject, screenshots, external stylesheets, or network dependencies. |
 | PNG | A high-resolution raster image, with optional transparent background. |
 | GIF | A 24-frame, 1.92-second looping connection illustration, or a still GIF when animation is off. |
-| JSON | The complete editable system and theme, for reopening in milver. |
+| JSON | Complete project backup: all canvases, code, libraries and their remote JavaScript dependencies, drafts, saved blocks, data, state, wiring, metadata and theme. |
 
 **Current canvas** exports every block at the current level, including blocks outside the visible viewport. **Entire system** includes every nested canvas: HTML makes them navigable, while images arrange them vertically as labeled sheets. HTML defaults to Entire system. Static SVG and PNG exports show each canvas's blocks and connections; parent internals appear on their own sheet when Entire system is selected.
 
@@ -170,7 +176,7 @@ This is a diagram editor, not a numerical simulation engine. Constants, gains, s
 
 Open **Libraries** in the left panel to add an ES module URL, upload `.js`/`.mjs` files, or create an embedded module. Expand an imported library to edit its alias, URL or source; use its trash button to remove it. These edits support undo/redo. Importing a library never creates a block or any connections.
 
-Libraries are exposed to every mounted JavaScript block, including its render function, as `modules.alias`. For example, a library saved as `helper` with `export const double = x => x * 2` is available as `modules.helper.double(x)`. Embedded libraries can import each other by project alias. The block’s code can also use dynamic imports for project aliases. Remote libraries must be browser-compatible ESM with CORS support. Embedded React libraries can import `react`, `react-dom`, `react-dom/client` and `react/jsx-runtime`; those specifiers resolve to the bundled UI instance so hooks remain compatible. Remote React component libraries should externalize those React imports. Uploaded source is embedded in JSON; remote URLs require network access.
+Libraries are exposed to every mounted JavaScript block, including its render function, as `modules.alias`. For example, a library saved as `helper` with `export const double = x => x * 2` is available as `modules.helper.double(x)`. Embedded libraries can import each other by project alias. The block’s code can also use dynamic imports for project aliases. Remote libraries must be browser-compatible ESM with CORS support. Embedded React libraries can import `react`, `react-dom`, `react-dom/client` and `react/jsx-runtime`; those specifiers resolve to the bundled UI instance so hooks remain compatible. Remote React component libraries should externalize those React imports. Uploaded source is embedded in JSON. JSON downloads also capture URL library sources and their transitive JavaScript imports into `moduleSources`, preserving original URLs and source text. Imported snapshots use these embedded sources in both block renderers and shared computations, so captured JavaScript does not need another download. Runtime HTTP requests, iframe content and external assets such as images or separately fetched Wasm files still require their original resources.
 
 ## JavaScript logic and rendering
 

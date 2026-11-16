@@ -1,6 +1,7 @@
 import type { ModuleDependency } from '../code-config';
 import { parseCodeFields, validVariable } from '../code-config';
-export type ProjectModule = { id: string; alias: string; builtin?: 'tensorflow'; referenceUrl?: string; filename?: string; source?: string; url?: string; dependencies?: ModuleDependency[] };
+export type ModuleDraft = { alias: string; content: string; remote: boolean };
+export type ProjectModule = { draft?: ModuleDraft; id: string; alias: string; builtin?: 'tensorflow'; referenceUrl?: string; filename?: string; source?: string; url?: string; dependencies?: ModuleDependency[] };
 export type Operation = { type: 'function' | 'construct' | 'method' | 'property' | 'export' | 'code'; moduleId?: string; exportName?: string; member?: string; uses?: string[]; effect: 'pure' | 'step' | 'event' };
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 export function parseModules(value: unknown): ProjectModule[] {
@@ -9,6 +10,11 @@ export function parseModules(value: unknown): ProjectModule[] {
   return value.map(m => {
     if (!object(m) || typeof m.id !== 'string' || !m.id || m.id.length > 128 || ids.has(m.id) || typeof m.alias !== 'string' || !validVariable(m.alias) || aliases.has(m.alias)) throw new Error('Project modules need unique IDs and JavaScript aliases.');
     ids.add(m.id); aliases.add(m.alias);
+    let draft: ModuleDraft | undefined;
+    if(m.draft !== undefined) {
+      if(!object(m.draft) || typeof m.draft.alias !== 'string' || m.draft.alias.length > 128 || typeof m.draft.content !== 'string' || m.draft.content.length > 100000 || typeof m.draft.remote !== 'boolean') throw new Error('Invalid library draft.');
+      draft={alias:m.draft.alias,content:m.draft.content,remote:m.draft.remote};
+    }
     if (m.filename !== undefined && (typeof m.filename !== 'string' || !m.filename || m.filename.length > 255 || /[\\/]/.test(m.filename))) throw new Error('Invalid module filename.');
     if (m.builtin !== undefined) {
       if (m.builtin !== 'tensorflow' || m.source !== undefined || m.url !== undefined || m.dependencies !== undefined || m.referenceUrl !== 'https://www.tensorflow.org/js') throw new Error('Invalid bundled TensorFlow.js library.');
@@ -16,7 +22,7 @@ export function parseModules(value: unknown): ProjectModule[] {
     }
     const fields = parseCodeFields({ dependencies: [{ specifier: m.alias, ...(m.url !== undefined ? { url: m.url } : {}), ...(m.source !== undefined ? { source: m.source } : {}) }] }, []);
     const dependencies = m.dependencies === undefined ? undefined : parseCodeFields({ dependencies: m.dependencies }, []).dependencies;
-    return { id: m.id, alias: m.alias, ...(m.filename !== undefined ? { filename: m.filename as string } : {}), ...(fields.dependencies![0].url !== undefined ? { url: fields.dependencies![0].url } : { source: fields.dependencies![0].source }), ...(dependencies ? { dependencies } : {}) };
+    return { id: m.id, alias: m.alias, ...(draft ? {draft} : {}), ...(m.filename !== undefined ? { filename: m.filename as string } : {}), ...(fields.dependencies![0].url !== undefined ? { url: fields.dependencies![0].url } : { source: fields.dependencies![0].source }), ...(dependencies ? { dependencies } : {}) };
   });
 }
 export function parseOperation(value: unknown): Operation {
@@ -46,3 +52,6 @@ export class Accumulator {
 // Optional hints for visual ports; arbitrary APIs can also be configured in Properties.
 export const milver = { add: { args: ['a', 'b'] }, matmul: { args: ['a', 'b'] }, Accumulator: { args: ['initial'], methods: { add: { args: ['amount'] }, read: { args: [] }, reset: { args: [] } } } };
 `;
+
+// Editor drafts are backed up, but never affect execution or reset live instances.
+export const activeModules = (modules: ProjectModule[]) => modules.map(({draft: _draft, ...module}) => module);

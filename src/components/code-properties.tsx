@@ -17,27 +17,28 @@ export function CodeProperties({ node, update }: { node: BlockNode; update: (pat
   const computation = !!node.data.operation;
   const python = node.data.kind === 'python';
   const raw = node.data.module ?? (node.data.kind === 'renderer' ? viewerLogic : python ? '' : defaultModule);
-  const source = (node.data.render !== undefined || node.data.kind === 'renderer') ? completeFunction(raw, 'run') : raw;
-  const [draft, setDraft] = useState(source);
+  const source = !computation && !/(?:async\s+)?function\s+run\s*\(/.test(raw) && (node.data.render !== undefined || node.data.kind === 'renderer') ? completeFunction(raw, 'run') : raw;
+  const [draft, setDraft] = useState(node.data.codeDraft ?? source);
   const [mappings, setMappings] = useState<Record<string, string>>(() => Object.fromEntries(node.data.ports.map(p => [p.id, p.variable ?? ''])));
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const file = useRef<HTMLInputElement>(null), binaryFile = useRef<HTMLInputElement>(null);
-  useEffect(() => { setDraft(source); setError(''); setNotice(''); }, [node.id, source]);
+  useEffect(() => { setDraft(node.data.codeDraft ?? source); setError(''); setNotice(''); }, [node.id, source, node.data.codeDraft]);
+  const changeDraft = (value: string) => { setDraft(value); update({codeDraft:value === source ? undefined : value}); };
   const portKey = JSON.stringify(node.data.ports.map(p => [p.id, p.variable]));
   useEffect(() => setMappings(Object.fromEntries(node.data.ports.map(p => [p.id, p.variable ?? '']))), [node.id, portKey]);
   const commit = (patch: Partial<BlockData>) => {
-    try { const data = normalizeFunctions({ ...node.data, ...patch }); parseCodeFields(data, data.ports); if (data.render !== undefined) buildBlockModule(data.module ?? '', data.render); update({...patch,module:data.module,render:data.render,renderEnabled:data.renderEnabled,state:data.state}); setError(''); return true; }
+    try { const data = normalizeFunctions({ ...node.data, ...patch }); parseCodeFields(data, data.ports); if (!computation && data.render !== undefined) buildBlockModule(data.module ?? '', data.render); update({...patch,module:data.module,render:data.render,renderEnabled:data.renderEnabled,state:data.state}); setError(''); return true; }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); return false; }
   };
   const readSource = async (file: File) => { if (file.size > 100000) throw new Error('Source files must be smaller than 100 KB.'); return file.text(); };
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
   return <InspectorSection title={python ? 'Python source' : 'Code function'} icon={Code2}><section className={`property-section code-properties ${disabled?'function-disabled':''}`}>
     {disabled&&<p className="field-help">Routing and structure are managed by the project runtime.</p>}
-    <Field label={python ? 'Python source' : node.data.render !== undefined ? 'run()' : 'JavaScript ES module'}><CodeEditor disabled={disabled} label={python ? 'Python source' : 'JavaScript source'} language={python ? 'text' : 'javascript'} value={draft} onChange={setDraft}/></Field>
-    <BlockHelp node={node} insert={snippet => setDraft(current => node.data.render !== undefined ? insertFunctionSnippet(current, snippet) : current + '\n\n' + snippet)}/>
-    <div className="code-editor-actions"><Button size="sm" disabled={disabled || draft === source} onClick={() => { if (draft.length > 100000) { setError('Code exceeds 100 KB.'); return; } if (commit({ module: draft })) setNotice('Code applied.'); }}>Apply code</Button><Button disabled={disabled} variant="outline" size="sm" onClick={() => file.current?.click()}><FileUp/>Import code</Button></div>
-    <input hidden ref={file} type="file" accept={python ? '.py,.txt' : '.js,.mjs,.txt'} onChange={async e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) try { setDraft(await readSource(f)); setNotice('Code loaded. Apply code to save and run.'); setError(''); } catch (e) { fail(e); } }}/>
+    <Field label={python ? 'Python source' : node.data.render !== undefined ? 'run()' : 'JavaScript ES module'}><CodeEditor disabled={disabled} label={python ? 'Python source' : 'JavaScript source'} language={python ? 'text' : 'javascript'} value={draft} onChange={changeDraft}/></Field>
+    <BlockHelp node={node} insert={snippet => changeDraft(node.data.render !== undefined ? insertFunctionSnippet(draft, snippet) : draft + '\n\n' + snippet)}/>
+    <div className="code-editor-actions"><Button size="sm" disabled={disabled || draft === source} onClick={() => { if (draft.length > 100000) { setError('Code exceeds 100 KB.'); return; } if (commit({ module: draft, codeDraft: undefined })) setNotice('Code applied.'); }}>Apply code</Button><Button disabled={disabled} variant="outline" size="sm" onClick={() => file.current?.click()}><FileUp/>Import code</Button></div>
+    <input hidden ref={file} type="file" accept={python ? '.py,.txt' : '.js,.mjs,.txt'} onChange={async e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) try { changeDraft(await readSource(f)); setNotice('Code loaded. Apply code to save and run.'); setError(''); } catch (e) { fail(e); } }}/>
     <InspectorSection title="Port variables" icon={Cable} className="code-bindings"><div className="code-bindings-body">    {computation ? <p className="field-help">Inputs are available by variable name and port ID. Return an object keyed by output variables, e.g. <code>return &#123; result: value &#125;</code>.</p> : <p className="field-help">Input variables are available as <code>inputs.name</code> and <code>variables.name</code>. Publish to an output variable with <code>emit(value, 'name')</code>. Port IDs also work.</p>}
     <div className="variable-mappings">{node.data.ports.map(p => <Field key={p.id} label={`${p.type === 'input' ? 'In' : 'Out'} · ${p.name} (${p.id})`}><Input aria-label={`Variable for ${p.id}`} value={mappings[p.id] ?? ''} placeholder={p.type === 'input' ? 'input1' : 'output1'} onChange={e => setMappings(current => ({ ...current, [p.id]: e.target.value }))}/></Field>)}</div>
     <Button variant="outline" size="sm" onClick={() => {

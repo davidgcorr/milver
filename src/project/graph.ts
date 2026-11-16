@@ -1,10 +1,11 @@
+import type { ModuleSources } from './module-sources';
 import { stringifySignal } from '../signal-json';
 import { jsRecipes } from '../js-recipes';
 import { canvasAt, type BlockData, type Canvas, type Diagram, type Port } from '../model';
-import type { ProjectModule } from './schema';
+import { activeModules, type ProjectModule } from './schema';
 export type Link = { node: string; port: string };
 export type RuntimeNode = { id: string; data: Pick<BlockData, 'kind' | 'value' | 'module' | 'operation' | 'recipe' | 'renderer' | 'ports'> & { nativeRecipe?: boolean }; inputs: Record<string, Link>; aliases: Record<string, Link> };
-export type ProjectPlan = { modules: ProjectModule[]; nodes: RuntimeNode[] };
+export type ProjectPlan = { moduleSources?: ModuleSources; modules: ProjectModule[]; nodes: RuntimeNode[] };
 export const nodeKey = (path: string[], id: string) => stringifySignal([...path, id]);
 export function compileProject(project: Diagram): ProjectPlan {
   const nodes: RuntimeNode[] = [];
@@ -40,11 +41,11 @@ export function compileProject(project: Diagram): ProjectPlan {
       if (node.data.canvas) visit(node.data.canvas, [...path, node.id]);
     }
   }
-  visit(project, []); return { modules: project.modules ?? [], nodes };
+  visit(project, []); return { ...(project.moduleSources ? {moduleSources:project.moduleSources} : {}), modules: activeModules(project.modules ?? []), nodes };
 }
 // Positions, labels, port sides, and view settings do not change computation identity.
 export function definitionKey(plan: ProjectPlan) {
-  return stringifySignal({ modules: plan.modules, nodes: plan.nodes.map(n => ({ id: n.id, kind: n.data.kind, module: n.data.module, operation: n.data.operation, recipe: n.data.recipe, nativeRecipe: n.data.nativeRecipe, ports: n.data.ports.map(p => [p.id, p.type, p.variable]), inputs: n.inputs, aliases: n.aliases })) });
+  return stringifySignal({ moduleSources:plan.moduleSources, modules: plan.modules, nodes: plan.nodes.map(n => ({ id: n.id, kind: n.data.kind, module: n.data.module, operation: n.data.operation, recipe: n.data.recipe, nativeRecipe: n.data.nativeRecipe, ports: n.data.ports.map(p => [p.id, p.type, p.variable]), inputs: n.inputs, aliases: n.aliases })) });
 }
 export function executionKey(plan: ProjectPlan) {
   return stringifySignal([definitionKey(plan), plan.nodes.map(n => [n.id, n.data.value, n.data.renderer])]);

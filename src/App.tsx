@@ -1,3 +1,6 @@
+import { downloadBlob } from './export/download';
+import { exportProjectJson } from './export/json';
+import { activeModules } from './project/schema';
 import { defineInspectorProperty } from './inspector-properties';
 import { flushSync } from 'react-dom';
 import { installBrowserMcp } from './mcp/browser';
@@ -126,7 +129,7 @@ function Editor() {
   }, []);
   const moduleVersions = useRef<Record<string, string>>({});
   const legacyVersions: Record<string, string> = {};
-  const collectVersions = (c: Canvas, parent: string[] = []) => { for (const n of c.nodes) { if (['javascript', 'renderer'].includes(n.data.kind)) legacyVersions[nodeKey(parent, n.id)] = JSON.stringify([document.modules, n.data.module, n.data.render, n.data.dependencies, n.data.wasm, n.data.ports.map(p => [p.id, p.type, p.variable])]); if (n.data.canvas) collectVersions(n.data.canvas, [...parent, n.id]); } };
+  const collectVersions = (c: Canvas, parent: string[] = []) => { for (const n of c.nodes) { if (['javascript', 'renderer'].includes(n.data.kind)) legacyVersions[nodeKey(parent, n.id)] = JSON.stringify([document.moduleSources,activeModules(document.modules ?? []), n.data.module, n.data.render, n.data.dependencies, n.data.wasm, n.data.ports.map(p => [p.id, p.type, p.variable])]); if (n.data.canvas) collectVersions(n.data.canvas, [...parent, n.id]); } };
   collectVersions(document);
   const runtimeKey = JSON.stringify(legacyVersions);
   useEffect(() => {
@@ -380,17 +383,23 @@ function Editor() {
   const updateTheme = (patch: Partial<ThemeSettings>) => {
     snapshot(); replace({ ...documentRef.current, theme: { ...(documentRef.current.theme ?? defaultTheme), ...patch } });
   };
-  const exportJson = () => {
-    const blob = new Blob([serializeDiagram(documentRef.current)], { type: 'application/json' }); const url = URL.createObjectURL(blob);
-    const anchor = window.document.createElement('a'); anchor.href = url;
-    anchor.download = `${document.name.trim().replace(/[^a-z0-9_-]+/gi, '-').toLowerCase() || 'milver'}.json`; anchor.click();
-    URL.revokeObjectURL(url); notify('Diagram exported');
+  const exportJson = async () => {
+    notify('Preparing complete JSON backup…');
+    try {
+      const json=await exportProjectJson(documentRef.current);
+      downloadBlob(new Blob([json],{type:'application/json'}),`${documentRef.current.name.trim().replace(/[^a-z0-9_-]+/gi,'-').toLowerCase()||'milver'}.json`);
+      notify('Complete project JSON exported');
+    } catch(error) { notify(error instanceof Error?error.message:'JSON export failed'); }
   };
   const importJson = (text: string) => {
     try { const next = parseDiagram(text); snapshot(); goTo([]); replace(next); setJsonOpen(false); setJsonError(''); notify('Diagram imported'); }
     catch (error) { setJsonError(error instanceof Error ? error.message : 'Invalid JSON'); }
   };
-  const openJson = () => { setJson(serializeDiagram(documentRef.current)); setJsonError(''); setJsonOpen(true); };
+  const openJson = async () => {
+    notify('Preparing complete project JSON…');
+    try { const json=await exportProjectJson(documentRef.current);setJson(json);setJsonError('');setJsonOpen(true); }
+    catch(error){notify(error instanceof Error?error.message:'Could not prepare JSON');}
+  };
   const openLibrary = () => setUI(u => ({ ...u, library: !u.library, ...(window.innerWidth < 700 && !u.library ? { inspector: false } : {}) }));
   const openInspector = () => { setAppearanceOpen(false); setUI(u => ({ ...u, inspector: !u.inspector, ...(window.innerWidth < 700 && !u.inspector ? { library: false } : {}) })); };
   useEffect(() => {
@@ -452,7 +461,7 @@ function Editor() {
     const bridge=installBrowserMcp(adapter);return()=>bridge.dispose();
   },[]);
 
-  return <TooltipProvider delayDuration={250}><RoughContext.Provider value={{ enabled: theme.rough === true, roughness: theme.roughness ?? 1 }}><ProjectContext.Provider value={{ myBlocks: document.myBlocks ?? [], saveBlock, insertSavedBlock, openProject: next => { snapshot(); goTo([]); replace(next); }, removeSavedBlock: id => { snapshot(); replace({ ...documentRef.current, myBlocks: documentRef.current.myBlocks?.filter(b => b.id !== id) }); }, modules: document.modules ?? [], catalog: projectRuntime.result?.catalog ?? [], values: projectValues, loadExample: example => { snapshot(); goTo([]); replace(parseDiagram(example === 'iframe' ? iframeExample : example === 'interactive' ? interactiveExample : example === 'nanogpt' ? nanogptExample : example === 'dictionary' ? dictionaryExample : example === 'attention' ? attentionExample : forwardExample)); }, createModule: createProjectModule, updateModule: updateProjectModule, removeModule: removeProjectModule, addBlock: addProjectBlock }}><PreviewContext.Provider value={{ values: preview, emit, setValue: setSourceValue, saveState: saveBlockState, setProperty: setCodeProperty, report: reportMask }}><FlowContext.Provider value={{ update: updateEdge, snapshot }}><BlockContext.Provider value={{ snapshot, enter, movePort, setHeader: (id, showHeader) => editCanvas(c => ({ ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, data: { ...n.data, visuals: { ...n.data.visuals, showHeader } } } : n) })) }}><main className={`milver-workspace ${theme.rough ? 'rough-mode' : ''}`} aria-label="milver block diagram editor">
+  return <TooltipProvider delayDuration={250}><RoughContext.Provider value={{ enabled: theme.rough === true, roughness: theme.roughness ?? 1 }}><ProjectContext.Provider value={{ myBlocks: document.myBlocks ?? [], saveBlock, insertSavedBlock, openProject: next => { snapshot(); goTo([]); replace(next); }, removeSavedBlock: id => { snapshot(); replace({ ...documentRef.current, myBlocks: documentRef.current.myBlocks?.filter(b => b.id !== id) }); }, moduleSources:document.moduleSources, modules: document.modules ?? [], catalog: projectRuntime.result?.catalog ?? [], values: projectValues, loadExample: example => { snapshot(); goTo([]); replace(parseDiagram(example === 'iframe' ? iframeExample : example === 'interactive' ? interactiveExample : example === 'nanogpt' ? nanogptExample : example === 'dictionary' ? dictionaryExample : example === 'attention' ? attentionExample : forwardExample)); }, createModule: createProjectModule, updateModule: updateProjectModule, removeModule: removeProjectModule, addBlock: addProjectBlock }}><PreviewContext.Provider value={{ values: preview, emit, setValue: setSourceValue, saveState: saveBlockState, setProperty: setCodeProperty, report: reportMask }}><FlowContext.Provider value={{ update: updateEdge, snapshot }}><BlockContext.Provider value={{ snapshot, enter, movePort, setHeader: (id, showHeader) => editCanvas(c => ({ ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, data: { ...n.data, visuals: { ...n.data.visuals, showHeader } } } : n) })) }}><main className={`milver-workspace ${theme.rough ? 'rough-mode' : ''}`} aria-label="milver block diagram editor">
     <ReactFlow<BlockNode> style={{ background: canvasBackground(theme) }}
       nodes={nodes} edges={edges.map(e => ({ ...e, type: 'recipe', data: { route: e.type === 'default' ? 'bezier' : 'smoothstep', ...e.data } }))} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
       onConnect={connect} isValidConnection={validConnection} onDrop={onDrop}
@@ -520,7 +529,7 @@ function Editor() {
     }}/>
 
     <ExportDialog open={exportOpen} onOpenChange={setExportOpen} diagram={document} path={path} notify={notify}/>
-    <Dialog open={jsonOpen} onOpenChange={setJsonOpen}><DialogContent className="json-dialog"><DialogHeader><DialogTitle className="dialog-title"><Braces/>JSON editor</DialogTitle><DialogDescription>Edit the complete diagram, including nested canvases and theme. Apply to rebuild the workspace.</DialogDescription></DialogHeader><Textarea className="json-source" aria-label="Diagram JSON" value={json} onChange={e => setJson(e.target.value)} spellCheck={false}/>{jsonError && <p className="json-error" role="alert">{jsonError}</p>}<DialogFooter className="json-footer"><Button variant="outline" onClick={() => void navigator.clipboard.writeText(json).then(() => notify('JSON copied'), () => notify('Clipboard unavailable. Select and copy the JSON.'))}><Copy/>Copy</Button><div><Button variant="outline" onClick={() => setJsonOpen(false)}>Cancel</Button><Button onClick={() => importJson(json)}><Check/>Apply to canvas</Button></div></DialogFooter></DialogContent></Dialog>
+    <Dialog open={jsonOpen} onOpenChange={setJsonOpen}><DialogContent className="json-dialog"><DialogHeader><DialogTitle className="dialog-title"><Braces/>JSON editor</DialogTitle><DialogDescription>Edit the complete project, including nested canvases, JavaScript libraries, block code, drafts, saved blocks, state and theme. Apply to rebuild the workspace.</DialogDescription></DialogHeader><Textarea className="json-source" aria-label="Diagram JSON" value={json} onChange={e => setJson(e.target.value)} spellCheck={false}/>{jsonError && <p className="json-error" role="alert">{jsonError}</p>}<DialogFooter className="json-footer"><Button variant="outline" onClick={() => void navigator.clipboard.writeText(json).then(() => notify('JSON copied'), () => notify('Clipboard unavailable. Select and copy the JSON.'))}><Copy/>Copy</Button><div><Button variant="outline" onClick={() => setJsonOpen(false)}>Cancel</Button><Button onClick={() => importJson(json)}><Check/>Apply to canvas</Button></div></DialogFooter></DialogContent></Dialog>
     <Dialog open={helpOpen} onOpenChange={setHelpOpen}><DialogContent><DialogHeader><DialogTitle>Working with milver</DialogTitle><DialogDescription>Build diagrams, connect signals, and organize systems into nested canvases.</DialogDescription></DialogHeader><div className="shortcuts">{[['Select / pan', 'V / H'], ['Pan temporarily', 'Space + drag'], ['Zoom', 'Scroll / pinch'], ['Fit to view', '1'], ['Undo / redo', '⌘ Ctrl + Z / Shift + Z'], ['Copy / paste blocks', '⌘ Ctrl + C / V'], ['Duplicate', '⌘ Ctrl + D'], ['Delete selection', 'Delete'], ['Export JSON', '⌘ Ctrl + S'], ['Leave parent canvas', 'Esc']].map(([action, key]) => <div key={action}><span>{action}</span><kbd>{key}</kbd></div>)}</div><Separator/><p className="help-note">Select a block to resize or drag it. Double-click a JavaScript block to use its controls; click outside it to finish. Double-click a Parent block to enter its canvas. Add Input and Output blocks inside to define its external ports. A collection of reusable block and canvas recipes. Connected constants, gains, sums and JS modules provide live value previews; feedback and time-domain simulation are left to consuming projects.</p><a className="license-link" href={`${import.meta.env.BASE_URL}THIRD_PARTY_NOTICES.txt`} target="_blank" rel="noreferrer">Third-party license notices<ArrowUpRight/></a></DialogContent></Dialog>
     {toast && <div className="editor-toast" role="status"><Check/>{toast}</div>}
   </main></BlockContext.Provider></FlowContext.Provider></PreviewContext.Provider></ProjectContext.Provider></RoughContext.Provider></TooltipProvider>;

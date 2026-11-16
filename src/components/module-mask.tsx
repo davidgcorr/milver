@@ -26,8 +26,9 @@ export function ModuleMask({ id, source, render, state, value, color, background
   const stateInput = state === savedState.current ? undefined : state;
   const initialState = useRef(state); initialState.current = state;
   const inputs = stringifySignal(values[id]?.inputs ?? {});
-  const block = stringifySignal({ id, label: 'Block', width: 240, height: 190, ...blockProperties });
-  const settings = JSON.stringify({ dependencies: allDependencies, ports: ports.map(({ id, type, variable }) => ({ id, type, variable })), wasm, renderer });
+  const {codeDraft: _codeDraft, renderDraft: _renderDraft, ...activeProperties} = blockProperties ?? {};
+  const block = stringifySignal({ id, label: 'Block', width: 240, height: 190, ...activeProperties });
+  const settings = JSON.stringify({ moduleSources:project.moduleSources, dependencies: allDependencies, ports: ports.map(({ id, type, variable }) => ({ id, type, variable })), wasm, renderer });
   const visualSource=render??(source===undefined||/\bfunction\s+run\s*\(/.test(source)?defaultRender:undefined);
   const code = useMemo(() => {
     try { return visualSource !== undefined ? buildBlockModule(source ?? defaultModule, visualSource, renderEnabled) : source ?? defaultModule; }

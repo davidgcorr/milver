@@ -51,8 +51,14 @@ export function normalizeFunctions(data:BlockData):BlockData{
   else if(data.module?.includes('Negative slope')&&data.module.includes('Positive slope')&&data.module.includes('matrix.map')){next.module=standardRecipes.MatrixActivation.logic;next.render=standardRecipes.MatrixActivation.render;}
   else Object.assign(next,convertLegacy(data.module!));
  }
- next.module=completeFunction(next.module??nativeLogic[data.kind]??(data.kind==='javascript'?defaultLogic:'// Logic is handled by the project runtime.'),'run');
- next.render=completeFunction(next.render??(nativeLogic[data.kind]?nativeRender:renderAvailable(data)?defaultRender:'return null;'),'render');
+ // Computations are ES modules: keep imports, exports and formatting intact.
+ if(data.kind==='compute' || data.kind==='module') {
+  next.render??=completeFunction('return null;','render');
+  next.state??={};next.renderEnabled=false;
+  return next;
+ }
+ next.module=next.module !== undefined && /(?:async\s+)?function\s+run\s*\(/.test(next.module) ? next.module : completeFunction(next.module??nativeLogic[data.kind]??(data.kind==='javascript'?defaultLogic:'// Logic is handled by the project runtime.'),'run');
+ next.render=next.render !== undefined && /(?:async\s+)?function\s+render\s*\(/.test(next.render) ? next.render : completeFunction(next.render??(nativeLogic[data.kind]?nativeRender:renderAvailable(data)?defaultRender:'return null;'),'render');
  if(next.module.length>100000||next.render.length>100000)throw new Error('Block functions exceed 100 KB after migration.');
  next.state??={};
  if(!renderAvailable(data))next.renderEnabled=false;

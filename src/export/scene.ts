@@ -1,3 +1,4 @@
+import { blockShapePath, shaped, shapePortPoint } from '../block-shapes';
 import { wireLayers } from '../arrow-masks';
 import {usesBlockFunctions} from '../block-functions';
 import { blockPresentation } from '../block-presentation';
@@ -13,7 +14,7 @@ export type ExportOptions = { scope: 'current' | 'system'; width: number; transp
 export const defaultExportOptions: ExportOptions = { scope: 'current', width: 1600, transparent: false, grid: false, title: true, animate: true };
 export type ExportPage = { title: string; path: string[]; canvas: Canvas; index: number; parent: number | null };
 export type ExportWire = { d: string; x: number; y: number; animationSize?: number; glow?: boolean; color?: string; reverse?: boolean };
-export type ExportMask = {key:string;x:number;y:number;width:number;height:number;opacity:number;label:string};
+export type ExportMask = {clipPath?:string;key:string;x:number;y:number;width:number;height:number;opacity:number;label:string};
 export type ExportScene = { masks?:ExportMask[]; width: number; height: number; body: string; wires: ExportWire[]; palette: ExportPalette; title: string; rough?: boolean; roughness?: number };
 export type ExportPalette = { background: string; card: string; foreground: string; muted: string; primary: string; border: string; grid: string; secondary: string };
 const sides: Record<Side, Position> = { left: Position.Left, right: Position.Right, top: Position.Top, bottom: Position.Bottom };
@@ -57,11 +58,12 @@ export function collectPages(diagram: Diagram, path: string[], scope: ExportOpti
 export function handlePoint(node: BlockNode, port: Port) {
   const fraction = portOffset(node.data.ports, port);
   const w = node.width ?? 164, h = node.height ?? 116;
-  return { x: node.position.x + (port.side === 'left' ? 0 : port.side === 'right' ? w : w * fraction), y: node.position.y + (port.side === 'top' ? 0 : port.side === 'bottom' ? h : h * fraction) };
+  const point=shapePortPoint(node.data.visuals?.shape,w,h,port.side,fraction);
+  return {x:node.position.x+point.x,y:node.position.y+point.y};
 }
 function canvasBounds(canvas: Canvas) {
   if (!canvas.nodes.length) return { x: 0, y: 0, width: 512, height: 200 };
-  const x = Math.min(...canvas.nodes.map(n => n.position.x)), y = Math.min(...canvas.nodes.map(n => n.position.y));
+  const x = Math.min(...canvas.nodes.map(n => n.position.x)), y = Math.min(...canvas.nodes.map(n => n.position.y-(shaped(n.data.visuals?.shape)&&n.data.visuals?.showHeader!==false?24:0)));
   const width = Math.max(...canvas.nodes.map(n => n.position.x + (n.width ?? 164))) - x;
   const height = Math.max(...canvas.nodes.map(n => n.position.y + (n.height ?? 116) + (n.data.visuals?.showLabel === false ? 0 : 28))) - y;
   if (![x, y, width, height].every(Number.isFinite) || Math.max(width, height) > 10_000_000) throw new Error('This diagram is too spread out to export. Move the blocks closer together.');
@@ -72,6 +74,7 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
   palette = { ...palette, card: v.background ?? palette.card, primary: v.foreground ?? palette.primary };
   radius = v.radius ?? radius;
   const w = node.width ?? 164, h = node.height ?? 116;
+  const customShape=shaped(v.shape),shapePath=customShape?blockShapePath(v.shape!,w,h):'';
   const parent = data.kind === 'subsystem', boundary = data.kind === 'inport' || data.kind === 'outport';
   const typePath = blockPresentation(data).trail.join(' › ');
   const clip = `block-${index}`; const textClip = `label-${index}`;
@@ -94,12 +97,12 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
     return `<circle cx="${x}" cy="${y}" r="${boundary ? 3 : 5.5}" fill="${palette.card}" stroke="${port.type === 'input' ? '#0284c7' : palette.primary}"/><circle cx="${x}" cy="${y}" r="2.5" fill="${port.type === 'input' ? palette.card : palette.primary}" stroke="${port.type === 'input' ? '#0284c7' : palette.primary}"/>` + (v.showPortLabels === false || boundary ? '' : text(left ? x + 12 : right ? x - 12 : x, left || right ? y + 2 : top ? y + 17 : y - 11, port.name, 7, `text-anchor="${left ? 'start' : right ? 'end' : 'middle'}" fill="${palette.muted}" clip-path="url(#${clip})"`));
   }).join('');
   const interactive = destination === undefined ? '' : ` data-enter="${destination}" role="button" tabindex="0" aria-label="${escapeXml(`Enter ${data.label}`)}" style="cursor:pointer"`;
-  const outlinePath = boundary ? `M ${w/2} 2 A ${w/2-2} ${h/2-2} 0 1 1 ${w/2-.01} 2` : `M2 2H${w-2}V${h-2}H2Z`;
+  const outlinePath = customShape ? shapePath : boundary ? `M ${w/2} 2 A ${w/2-2} ${h/2-2} 0 1 1 ${w/2-.01} 2` : `M2 2H${w-2}V${h-2}H2Z`;
   const outline = sketch ? roughPaths(outlinePath,index,v.strokeColor ?? palette.primary,v.strokeWidth ?? 1.2,roughness).map(p=>`<path d="${p.d}" fill="none" stroke="${p.stroke}" stroke-width="${p.strokeWidth}"/>`).join('') : '';
-  const frame = boundary ? `<ellipse cx="${w/2}" cy="${h/2}" rx="${w/2-2}" ry="${h/2-2}" fill="${palette.card}" stroke="${sketch ? 'none' : v.strokeColor ?? palette.border}" stroke-width="${v.strokeWidth ?? 1}"/>` : `<rect width="${w}" height="${h}" rx="${Math.min(radius,w/2,h/2)}" fill="${palette.card}" stroke="${sketch ? 'none' : v.strokeColor ?? palette.border}" stroke-width="${v.strokeWidth ?? 1}"/>`;
+  const frame = customShape ? `<path data-shape-frame="true" d="${shapePath}" fill="${palette.card}" stroke="${sketch?'none':v.strokeColor??palette.border}" stroke-width="${v.strokeWidth??1}"/>` : boundary ? `<ellipse cx="${w/2}" cy="${h/2}" rx="${w/2-2}" ry="${h/2-2}" fill="${palette.card}" stroke="${sketch ? 'none' : v.strokeColor ?? palette.border}" stroke-width="${v.strokeWidth ?? 1}"/>` : `<rect width="${w}" height="${h}" rx="${Math.min(radius,w/2,h/2)}" fill="${palette.card}" stroke="${sketch ? 'none' : v.strokeColor ?? palette.border}" stroke-width="${v.strokeWidth ?? 1}"/>`;
   const shadowId=`shadow-${index}`;
   const shadow=(v.shadow ?? (v.shadowColor ? 2 : 0)) ? `<filter id="${shadowId}" x="-100%" y="-100%" width="300%" height="300%"><feDropShadow dx="0" dy="${(v.shadow ?? 2)/3}" stdDeviation="${(v.shadow ?? 2)/2}" flood-color="${v.shadowColor ?? '#000000'}" flood-opacity="0.15"/></filter>` : '';
-  return `<g data-block="${index}" transform="translate(${node.position.x} ${node.position.y})"${v.opacity !== undefined ? ` opacity="${v.opacity}"` : ''}${interactive}><title>${escapeXml(data.label + (data.description ? ': ' + data.description : ''))}</title><defs>${shadow}<clipPath id="${clip}"><rect x="6" y="5" width="${w - 12}" height="${h - 10}"/></clipPath><clipPath id="${textClip}"><rect x="${boundary ? w/2-75 : 12}" y="${h + 4}" width="${boundary ? 150 : w - 24}" height="24"/></clipPath></defs>${shadow ? `<g filter="url(#${shadowId})">${frame}${outline}</g>` : frame+outline}${v.showHeader === false || boundary ? '' : `<path d="M0 25H${w}" stroke="${palette.border}"/>` + text(10, 16, typePath, 8, `opacity="0.65" fill="${palette.muted}" clip-path="url(#${clip})"`)}${symbol}${v.showLabel === false ? '' : text(w / 2, h + 20, data.label, 10, `text-anchor="middle" fill="${palette.muted}" clip-path="url(#${textClip})"`)}${parent ? `<path d="m${w - 20} ${h + 10} 4 4-4 4" fill="none" stroke="${palette.muted}" stroke-width="1.2"/>` : ''}${ports}</g>`;
+  return `<g data-block="${index}" transform="translate(${node.position.x} ${node.position.y})"${v.opacity !== undefined ? ` opacity="${v.opacity}"` : ''}${interactive}><title>${escapeXml(data.label + (data.description ? ': ' + data.description : ''))}</title><defs>${shadow}<clipPath id="${clip}">${customShape?`<path d="${shapePath}"/>`:`<rect x="6" y="5" width="${w - 12}" height="${h - 10}"/>`}</clipPath><clipPath id="${textClip}"><rect x="${boundary ? w/2-75 : 12}" y="${h + 4}" width="${boundary ? 150 : w - 24}" height="24"/></clipPath></defs>${shadow ? `<g filter="url(#${shadowId})">${frame}${outline}</g>` : frame+outline}${v.showHeader === false || boundary ? '' : customShape ? text(10,-9,typePath,8,`opacity="0.65" fill="${palette.muted}"`) : `<path d="M0 25H${w}" stroke="${palette.border}"/>` + text(10, 16, typePath, 8, `opacity="0.65" fill="${palette.muted}" clip-path="url(#${clip})"`)}${customShape?`<g clip-path="url(#${clip})">${symbol}</g>`:symbol}${v.showLabel === false ? '' : text(w / 2, h + 20, data.label, 10, `text-anchor="middle" fill="${palette.muted}" clip-path="url(#${textClip})"`)}${parent ? `<path d="m${w - 20} ${h + 10} 4 4-4 4" fill="none" stroke="${palette.muted}" stroke-width="1.2"/>` : ''}${ports}</g>`;
 }
 export function buildScene(diagram: Diagram, pages: ExportPage[], options: ExportOptions, interactive = false, liveMasks = false): ExportScene {
   const theme = diagram.theme ?? defaultTheme; const palette = exportPalette(theme);
@@ -127,8 +130,8 @@ export function buildScene(diagram: Diagram, pages: ExportPage[], options: Expor
 
     }).join('');
     if(liveMasks)sheet.canvas.nodes.forEach((node,i)=>{
-      const v=node.data.visuals??{},top=v.showHeader===false?5:30;
-      if(usesBlockFunctions(node.data)&&node.data.renderEnabled!==false&&v.showValue!==false)masks.push({key:`${sheet.index}-${i}`,x:x+node.position.x+10,y:y+node.position.y+top,width:Math.max(1,(node.width??164)-20),height:Math.max(1,(node.height??116)-top-5),opacity:v.opacity??1,label:node.data.label});
+      const v=node.data.visuals??{},custom=shaped(v.shape),top=custom?0:v.showHeader===false?5:30;
+      if(usesBlockFunctions(node.data)&&node.data.renderEnabled!==false&&v.showValue!==false)masks.push({key:`${sheet.index}-${i}`,x:x+node.position.x+(custom?0:10),y:y+node.position.y+top,width:Math.max(1,(node.width??164)-(custom?0:20)),height:Math.max(1,(node.height??116)-top-(custom?0:5)),opacity:v.opacity??1,label:node.data.label,...(custom?{clipPath:blockShapePath(v.shape!,node.width??164,node.height??116)}:{})});
     });
     const blocks = sheet.canvas.nodes.map((node, i) => renderBlock(node, `${sheet.index}-${i}`, palette, theme.radius - 1, interactive ? pages.find(p => p.path.length === sheet.path.length + 1 && p.path.slice(0, -1).every((id, j) => id === sheet.path[j]) && p.path.at(-1) === node.id)?.index : undefined, theme.rough === true, theme.roughness ?? 1, liveMasks)).join('');
     const title = heading ? `<text x="32" y="${yOffset + 36}" font-size="13" font-weight="600" fill="${palette.foreground}">${escapeXml(sheet.title)}</text><path d="M32 ${yOffset + 52}H${width - 32}" stroke="${palette.border}"/>` : '';

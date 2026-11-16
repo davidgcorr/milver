@@ -19,7 +19,7 @@ export async function sandbox(source: string, dependencies: ModuleDependency[] =
   };
   const ports = makeNode('javascript', { x: 0, y: 0 }).data.ports;
   ports[0].variable = 'signal'; ports[1].variable = 'result';
-  const html = moduleDocument(source, { dependencies, ports, state: initialState, token: 'session', ...(options.renderer ? { renderer: options.renderer } : {}), ...(options.ports ? { ports: options.ports } : {}), ...(options.ui ? { uiSource: 'test-ui' } : {}) });
+  const html = moduleDocument(source, { moduleSources: options.moduleSources, dependencies, ports, state: initialState, token: 'session', ...(options.renderer ? { renderer: options.renderer } : {}), ...(options.ports ? { ports: options.ports } : {}), ...(options.ui ? { uiSource: 'test-ui' } : {}) });
   const script = html.split('<script type="module">')[1].split('</script>')[0].replaceAll('await import(name)', 'await importModule(name)').replaceAll('await import(url)', 'await importModule(url)').replaceAll('await import(uiUrl)', 'await importModule(uiUrl)');
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   await new AsyncFunction('document', 'parent', 'addEventListener', 'URL', 'importModule', script)(document, parent, (name: string, callback: (event: any) => void) => { (listeners[name] ??= []).push(callback); }, url, importModule);

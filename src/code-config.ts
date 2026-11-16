@@ -9,7 +9,10 @@ export const validVariable = (name: string) => /^[A-Za-z_$][\w$]{0,63}$/.test(na
 export const validSpecifier = (name: string) => /^[A-Za-z@][\w@/.-]{0,127}$/.test(name) && !['__proto__', 'constructor', 'prototype'].includes(name);
 export const validModuleUrl = (url: string) => { try { return ['https:', 'http:'].includes(new URL(url).protocol); } catch { return false; } };
 export function parseCodeFields(data: Record<string, unknown>, ports: Port[]) {
-  const result: { dependencies?: ModuleDependency[]; wasm?: WasmConfig; recipe?: string; renderer?: RendererConfig; render?: string; renderEnabled?: boolean; state?: Record<string, Signal>; controlledProperties?: ControlledPath[] } = {};
+  const result: { codeDraft?: string; renderDraft?: string; dependencies?: ModuleDependency[]; wasm?: WasmConfig; recipe?: string; renderer?: RendererConfig; render?: string; renderEnabled?: boolean; state?: Record<string, Signal>; controlledProperties?: ControlledPath[] } = {};
+  for (const key of ['codeDraft', 'renderDraft'] as const) {
+    if(data[key] !== undefined) { if(typeof data[key] !== 'string' || data[key].length > 100000) throw new Error('Invalid code draft.'); result[key] = data[key]; }
+  }
   if(data.renderEnabled!==undefined){if(typeof data.renderEnabled!=='boolean')throw new Error('Invalid render enabled flag.');result.renderEnabled=data.renderEnabled;}
   if (data.render !== undefined) { if (typeof data.render !== 'string' || data.render.length > 100000) throw new Error('Invalid render function.'); result.render = data.render; }
   if (data.state !== undefined) { if (!data.state || Array.isArray(data.state) || typeof data.state !== 'object' || !isSignal(data.state)) throw new Error('State must be a bounded JSON object.'); result.state = data.state as Record<string, Signal>; }

@@ -1,3 +1,5 @@
+import { parseBlockShape, type BlockShape } from './block-shapes';
+import { parseModuleSources, type ModuleSources } from './project/module-sources';
 import { arrowMasks, type ArrowMask } from './arrow-masks';
 import type { PropertyField, PropertyValue } from './inspector-properties';
 import {normalizeFunctions} from './block-functions';
@@ -13,7 +15,7 @@ import type { Edge, Node, Viewport } from '@xyflow/react';
 export type Side = 'left' | 'right' | 'top' | 'bottom';
 export type Port = { id: string; name: string; type: 'input' | 'output'; side: Side; offset?: number; variable?: string };
 export type ThemeSettings = { rough?: boolean; roughness?: number; showGrid?: boolean; canvasBackground?: 'plain' | 'aurora' | 'ocean' | 'sunset'; mode: 'light' | 'dark'; hue: number; chroma: number; radius: number };
-export type BlockVisuals = { shadow?: number; shadowColor?: string; strokeWidth?: number; strokeColor?: string; opacity?: number; background?: string; foreground?: string; showHeader?: boolean; showLabel?: boolean; showValue?: boolean; showPortLabels?: boolean; radius?: number };
+export type BlockVisuals = { shape?: BlockShape; shadow?: number; shadowColor?: string; strokeWidth?: number; strokeColor?: string; opacity?: number; background?: string; foreground?: string; showHeader?: boolean; showLabel?: boolean; showValue?: boolean; showPortLabels?: boolean; radius?: number };
 export type FlowSettings = { mask?: ArrowMask; routePoints?: { x: number; y: number }[]; route?: 'smoothstep' | 'bezier'; points?: { x: number; y: number }[]; animation?: 'none' | 'dash' | 'pulse' | 'glow'; animationSize?: number; speed?: number; reverse?: boolean; color?: string; width?: number };
 export type Canvas = { nodes: BlockNode[]; edges: Edge[]; viewport: Viewport };
 export type BlockData = {
@@ -21,6 +23,8 @@ export type BlockData = {
   visuals?: BlockVisuals;
   propertyFields?: Record<string, PropertyField>;
   parameters?: Record<string, PropertyValue>;
+  codeDraft?: string;
+  renderDraft?: string;
   module?: string;
   render?: string;
   renderEnabled?: boolean;
@@ -39,7 +43,7 @@ export type BlockData = {
 export type BlockNode = Node<BlockData, 'block'>;
 export type SavedBlock = { id: string; name: string; width: number; height: number; data: BlockData; modules?: ProjectModule[] };
 export type ProjectMetadata = { author?: string; createdAt?: string; updatedAt?: string };
-export type Diagram = Canvas & { metadata?: ProjectMetadata; version: 1; name: string; theme?: ThemeSettings; modules?: ProjectModule[]; myBlocks?: SavedBlock[] };
+export type Diagram = Canvas & { moduleSources?: ModuleSources; metadata?: ProjectMetadata; version: 1; name: string; theme?: ThemeSettings; modules?: ProjectModule[]; myBlocks?: SavedBlock[] };
 export const defaultTheme: ThemeSettings = { mode: 'light', hue: 0, chroma: 0, radius: 10, rough: false, roughness: 1, showGrid: true, canvasBackground: 'plain' };
 export const defaultViewport: Viewport = { x: 80, y: 160, zoom: 1 };
 export const colors = ['#171717', '#404040', '#525252', '#737373', '#a3a3a3', '#d4d4d4'];
@@ -124,7 +128,7 @@ export function updateCanvas<T extends Canvas>(root: T, path: string[], transfor
 function serializeCanvas(canvas: Canvas): Canvas {
   return { viewport: canvas.viewport, nodes: canvas.nodes.map(({ id, type, position, width, height, data }) => ({ id, type, position, width: width ?? 164, height: height ?? 116, data: { ...data, ...(data.canvas ? { canvas: serializeCanvas(data.canvas) } : {}) } })), edges: canvas.edges.map(({ id, source, target, sourceHandle, targetHandle, type, data }) => ({ id, source, target, sourceHandle, targetHandle, type: type ?? 'smoothstep', ...(data ? { data } : {}) })) };
 }
-export function serializeDiagram(diagram: Diagram): string { return JSON.stringify({ version: 1, name: diagram.name, ...(diagram.metadata ? { metadata: diagram.metadata } : {}), ...(diagram.theme ? { theme: diagram.theme } : {}), ...(diagram.modules ? { modules: diagram.modules } : {}), ...(diagram.myBlocks ? { myBlocks: diagram.myBlocks } : {}), ...serializeCanvas(diagram) }, signalReplacer, 2); }
+export function serializeDiagram(diagram: Diagram): string { return JSON.stringify({ version: 1, name: diagram.name, ...(diagram.metadata ? { metadata: diagram.metadata } : {}), ...(diagram.theme ? { theme: diagram.theme } : {}), ...(diagram.moduleSources ? { moduleSources:diagram.moduleSources } : {}), ...(diagram.modules ? { modules: diagram.modules } : {}), ...(diagram.myBlocks ? { myBlocks: diagram.myBlocks } : {}), ...serializeCanvas(diagram) }, signalReplacer, 2); }
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isSide = (v: unknown): v is Side => ['left', 'right', 'top', 'bottom'].includes(String(v));
@@ -172,7 +176,8 @@ export function parseDiagram(json: string): Diagram {
         if (v.strokeWidth !== undefined && (!finite(v.strokeWidth) || v.strokeWidth < 0 || v.strokeWidth > 12)) throw new Error('Invalid block stroke width.');
         if (v.opacity !== undefined && (!finite(v.opacity) || v.opacity < 0 || v.opacity > 1)) throw new Error('Invalid block opacity.');
         if (v.radius !== undefined && (!finite(v.radius) || v.radius < 0 || v.radius > 60)) throw new Error('Invalid block radius.');
-        data.visuals = Object.fromEntries(['background', 'foreground', 'showHeader', 'showLabel', 'showValue', 'showPortLabels', 'radius', 'opacity', 'shadow', 'strokeWidth', 'strokeColor', 'shadowColor'].filter(k => v[k] !== undefined).map(k => [k, v[k]]));
+        const shape=v.shape===undefined?undefined:parseBlockShape(v.shape);
+        data.visuals = {...(shape?{shape}:{}),...Object.fromEntries(['background', 'foreground', 'showHeader', 'showLabel', 'showValue', 'showPortLabels', 'radius', 'opacity', 'shadow', 'strokeWidth', 'strokeColor', 'shadowColor'].filter(k => v[k] !== undefined).map(k => [k, v[k]]))};
       }
       if (b.exposedOffset !== undefined) { if (!finite(b.exposedOffset) || b.exposedOffset < 0 || b.exposedOffset > 1) throw new Error('Invalid exposed port offset.'); data.exposedOffset = b.exposedOffset; }
       if (b.exposedSide !== undefined) { if (!isSide(b.exposedSide)) throw new Error('Invalid exposed port side.'); data.exposedSide = b.exposedSide; }
@@ -187,7 +192,7 @@ export function parseDiagram(json: string): Diagram {
         const defined = interfacePorts(data.canvas);
         if (defined.length !== ports.length || defined.some(p => !ports.some(q => q.id === p.id && q.name === p.name && q.side === p.side && q.type === p.type && q.offset === p.offset))) throw new Error(`Parent block ${n.id} ports must match its internal Input and Output blocks.`);
       } else if (b.canvas !== undefined) throw new Error('Only parent blocks can contain a canvas.');
-      ids.add(n.id); nodes.push({ id: n.id, type: 'block', position: { x: n.position.x, y: n.position.y }, width: ['inport', 'outport'].includes(data.kind) ? 28 : n.width, height: ['inport', 'outport'].includes(data.kind) ? 28 : n.height, data:(()=>{const normalized=normalizeFunctions(data);if(data.kind==='javascript'&&/export\s+default/.test(data.module??'')){if(normalized.module?.includes('modules.tensorMath'))migratedMath=true;if(data.recipe==='Three.js'&&normalized.module!==data.module)migratedThree=true;}return normalized;})() });
+      ids.add(n.id); nodes.push({ id: n.id, type: 'block', position: { x: n.position.x, y: n.position.y }, width: n.width, height: n.height, data:(()=>{const normalized=normalizeFunctions(data);if(data.kind==='javascript'&&/export\s+default/.test(data.module??'')){if(normalized.module?.includes('modules.tensorMath'))migratedMath=true;if(data.recipe==='Three.js'&&normalized.module!==data.module)migratedThree=true;}return normalized;})() });
     }
     const edgeIds = new Set<string>(); const occupied = new Set<string>(); const edges: Edge[] = [];
     for (const e of value.edges) {
@@ -224,7 +229,8 @@ export function parseDiagram(json: string): Diagram {
   let modules=d.modules!==undefined?parseModules(d.modules):undefined;
   if(migratedMath)modules=withMath(modules);
   if(migratedThree&&!modules?.some(module=>module.alias==='THREE'))modules=[...(modules??[]),{id:'legacy-three',alias:'THREE',url:'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js'}];
-  return { version: 1, name: d.name, ...(metadata ? { metadata } : {}), ...(myBlocks ? { myBlocks } : {}), ...(theme ? { theme } : {}), ...(modules?{modules}:{}), ...canvas };
+  const moduleSources=d.moduleSources===undefined?undefined:parseModuleSources(d.moduleSources);
+  return { version: 1, name: d.name, ...(moduleSources?{moduleSources}:{}), ...(metadata ? { metadata } : {}), ...(myBlocks ? { myBlocks } : {}), ...(theme ? { theme } : {}), ...(modules?{modules}:{}), ...canvas };
 }
 
 export function parseFlowSettings(value: unknown): FlowSettings {

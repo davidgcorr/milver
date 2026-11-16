@@ -1,5 +1,5 @@
 import type { Diagram } from '../model';
-import { serializeDiagram } from '../model';
+import { exportProjectJson } from './json';
 import { exportHtml } from './html';
 import { buildScene, collectPages, exportFilename, rasterSize, sceneSvg, type ExportFormat, type ExportOptions, type ExportScene } from './scene';
 
@@ -64,7 +64,7 @@ export async function renderGif(scene: ExportScene, options: ExportOptions, onPr
   return new Blob([new Uint8Array(encoder.bytes())], { type: 'image/gif' });
 }
 export async function createExport(diagram: Diagram, path: string[], format: ExportFormat, options: ExportOptions, onProgress = (_value: number) => {}): Promise<{ blob: Blob; filename: string }> {
-  if (format === 'json') return { blob: new Blob([serializeDiagram(diagram)], { type: 'application/json' }), filename: exportFilename(diagram.name, format) };
+  if (format === 'json') return { blob: new Blob([await exportProjectJson(diagram)], { type: 'application/json' }), filename: exportFilename(diagram.name, format) };
   const pages = collectPages(diagram, path, options.scope);
   const scene = buildScene(diagram, pages, options);
   let blob: Blob;

@@ -1,10 +1,11 @@
+import type { ModuleSources } from '../project/module-sources';
 import { browserUi } from '../mcp/dom';
 import { signalReplacer, signalReviver } from '../signal-json';
 import sandboxStyles from '../sandbox-ui.css?raw';
 import type { Port } from '../model';
 import type { ModuleDependency, WasmConfig, RendererConfig } from '../code-config';
 import { isSignal, type Signal } from '../runtime';
-export type ModuleOptions = { dependencies?: ModuleDependency[]; ports?: Pick<Port, 'id' | 'type' | 'variable'>[]; wasm?: WasmConfig; token?: string; state?: Record<string, Signal>; uiSource?: string; renderer?: RendererConfig };
+export type ModuleOptions = { moduleSources?: ModuleSources; dependencies?: ModuleDependency[]; ports?: Pick<Port, 'id' | 'type' | 'variable'>[]; wasm?: WasmConfig; token?: string; state?: Record<string, Signal>; uiSource?: string; renderer?: RendererConfig };
 export function moduleDocument(source: string, options: ModuleOptions = {}): string {
   const encode = (value: unknown) => JSON.stringify(value, signalReplacer).replace(/</g, '\\u003c');
   return `<!doctype html><html><head><style>${sandboxStyles}html,body,#mask{margin:0;width:100%;height:100%;overflow:hidden}body{font:12px system-ui}#mask{display:grid;place-items:center}pre{white-space:pre-wrap;color:#dc2626;font:10px monospace;padding:8px}input,select,button{font:inherit;accent-color:currentColor}button{cursor:pointer}</style></head><body><div id="mask"></div><script type="module">
@@ -73,7 +74,8 @@ try {
    if(ui.jsxRuntime)bridge('react/jsx-runtime','globalThis.__milverReactUI.jsxRuntime',ui.jsxRuntime);
  }
 
- for(const d of config.dependencies??[]){if(imports[d.specifier])continue;if(d.url)imports[d.specifier]=d.url;else{const url=URL.createObjectURL(new Blob([d.source],{type:'text/javascript'}));urls.push(url);imports[d.specifier]=url;}}
+ for(const [name,entry] of Object.entries(config.moduleSources??{})){const url=URL.createObjectURL(new Blob([entry.resolvedSource],{type:'text/javascript'}));urls.push(url);imports[name]=url;}
+ for(const d of config.dependencies??[]){if(imports[d.specifier])continue;if(d.url)imports[d.specifier]=imports[d.url]??d.url;else{const url=URL.createObjectURL(new Blob([d.source],{type:'text/javascript'}));urls.push(url);imports[d.specifier]=url;}}
  const map=document.createElement('script');map.type='importmap';map.textContent=JSON.stringify({imports});document.head.append(map);
  modules={...modules,...Object.fromEntries(await Promise.all(Object.keys(imports).map(async name=>[name,await import(name)])))};
  for(const namespace of Object.values(modules)){if(namespace?.tf){await namespace.ready;modules.tf??=namespace.tf;modules.tensorMath??=namespace;}}

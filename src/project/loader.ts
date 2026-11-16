@@ -1,3 +1,4 @@
+import type { ModuleSources } from './module-sources';
 import { init, parse } from 'es-module-lexer';
 import type { ProjectModule } from './schema';
 import type { ModuleDependency } from '../code-config';
@@ -6,7 +7,7 @@ export class ModuleLoader {
   private urls = new Set<string>();
   private sources = new Map<string, string>();
   private resolved = new Map<string, Promise<string>>();
-  constructor(private definitions: ProjectModule[], private transport?: { createURL: (source: string) => string; importURL?: (url: string) => Promise<Namespace> }) {
+  constructor(private definitions: ProjectModule[], private transport?: { createURL: (source: string) => string; importURL?: (url: string) => Promise<Namespace> }, private moduleSources: ModuleSources = {}) {
     for (const m of definitions) {
       if (m.source !== undefined) this.sources.set(m.alias, m.source);
       for (const d of m.dependencies ?? []) if (d.source !== undefined) {
@@ -27,7 +28,8 @@ export class ModuleLoader {
     if (chain.includes(key)) throw new Error(`Circular module dependency: ${[...chain, key].join(' → ')}. Combine cyclic local modules.`);
     const cached = this.resolved.get(key); if (cached) return cached;
     const task = (async () => {
-      let source = this.sources.get(key), sourceUrl = dep?.url;
+      let source = this.sources.get(key) ?? this.moduleSources[key]?.source, sourceUrl = dep?.url ?? (this.moduleSources[key] ? key : undefined);
+      sourceUrl = this.moduleSources[key]?.baseUrl ?? sourceUrl;
       if (dep?.builtin === 'tensorflow') source = (await import('../generated/block-math.js?raw')).default;
       if (source === undefined) {
         sourceUrl ??= key;

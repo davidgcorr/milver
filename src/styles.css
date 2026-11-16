@@ -413,3 +413,21 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .route-add path{stroke:var(--primary);stroke-width:1.5}
 .route-add:hover circle,.route-add:focus-visible circle{fill:var(--accent);stroke-width:2.5}
 .route-point:focus-visible{outline:none;stroke-width:3}
+
+.block-shape-editor{display:grid;gap:10px}
+.block-shape-outline{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:0}
+.shaped-block .block-body{position:absolute;inset:0;min-height:0;z-index:1}
+.shaped-block .block-type-trail{position:absolute;bottom:100%;border:0;border-radius:0;padding:4px 10px;min-height:24px}
+.shaped-block .block-type-expand{top:-20px}
+.shaped-block .block-footer{z-index:2}
+.bezier-shape-editor{width:100%;aspect-ratio:1;border:1px solid var(--border);border-radius:8px;background:var(--muted);touch-action:none}
+.shape-editor-grid{fill:var(--card);stroke:var(--border);stroke-dasharray:2 2;stroke-width:.5}
+.shape-editor-outline{fill:var(--accent);stroke:var(--primary);stroke-width:1;pointer-events:none}
+.shape-editor-tangents{fill:none;stroke:var(--muted-foreground);stroke-width:.6;pointer-events:none}
+.shape-editor-point{stroke:var(--primary);stroke-width:.8;cursor:grab;fill:var(--card)}
+.shape-editor-point.anchor.active{fill:var(--primary)}
+.shape-editor-point.tangent{fill:var(--muted)}
+.shape-editor-point:focus-visible{outline:none;stroke-width:1.8}
+.shape-editor-point:active{cursor:grabbing}
+.shape-editor-actions{display:flex;flex-wrap:wrap;gap:4px}
+.shape-editor-actions button{font-size:10px}

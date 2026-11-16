@@ -12,7 +12,7 @@ async function flush() {
       const request = pending; pending = undefined;
       try {
         if (!engine) {
-          loader = new ModuleLoader(request.plan.modules);
+          loader = new ModuleLoader(request.plan.modules,undefined,request.plan.moduleSources);
           engine = new ProjectEngine(await loader.load(), request.plan.modules);
           for (const node of request.plan.nodes) if (node.data.operation?.type === 'code') engine.setCode(node.id, await loader.code(node.data.module ?? ''));
         }

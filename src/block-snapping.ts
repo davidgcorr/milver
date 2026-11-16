@@ -1,8 +1,10 @@
+import { shapePortPoint } from './block-shapes';
 import type { BlockNode, Canvas, Port } from './model';
 import { portOffset } from './ports';
 function portPoint(node: BlockNode, port: Port) {
   const w=node.width ?? node.measured?.width ?? 164,h=node.height ?? node.measured?.height ?? 116,fraction=portOffset(node.data.ports,port);
-  return {x:node.position.x+(port.side==='left'?0:port.side==='right'?w:w*fraction),y:node.position.y+(port.side==='top'?0:port.side==='bottom'?h:h*fraction)};
+  const point=shapePortPoint(node.data.visuals?.shape,w,h,port.side,fraction);
+  return {x:node.position.x+point.x,y:node.position.y+point.y};
 }
 // Move a dragged selection as a unit, aligning the actual connected ports.
 export function snapConnectedBlocks(nodes: BlockNode[], edges: Canvas['edges'], moving: Set<string>, threshold=12): BlockNode[] {

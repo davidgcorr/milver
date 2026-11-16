@@ -50,7 +50,7 @@ export function mountExport(config:ExportRuntimeConfig){
    if(path==='visuals.foreground')d.color=String(value);if(path==='visuals.background')d.background=String(value);
    const group=document.querySelector<SVGGElement>(`[data-block="${d.frameKey}"]`),visuals=d.block.visuals??{};
    if(visuals.opacity!==undefined)record.frame.style.opacity=String(visuals.opacity);
-   if(group){const shadow=group.querySelector('feDropShadow');if(shadow&&visuals.shadowColor)shadow.setAttribute('flood-color',visuals.shadowColor);if(visuals.opacity!==undefined)group.style.opacity=String(visuals.opacity);const shape=group.querySelector<SVGElement>(':scope>rect,:scope>ellipse,:scope>g[filter]>rect');if(shape){if(visuals.background)shape.setAttribute('fill',visuals.background);if(visuals.strokeColor)shape.setAttribute('stroke',visuals.strokeColor);if(visuals.strokeWidth!==undefined)shape.setAttribute('stroke-width',String(visuals.strokeWidth));if(visuals.radius!==undefined)shape.setAttribute('rx',String(visuals.radius));}}
+   if(group){const shadow=group.querySelector('feDropShadow');if(shadow&&visuals.shadowColor)shadow.setAttribute('flood-color',visuals.shadowColor);if(visuals.opacity!==undefined)group.style.opacity=String(visuals.opacity);const shape=group.querySelector<SVGElement>('[data-shape-frame],:scope>rect,:scope>ellipse,:scope>g[filter]>rect');if(shape){if(visuals.background)shape.setAttribute('fill',visuals.background);if(visuals.strokeColor)shape.setAttribute('stroke',visuals.strokeColor);if(visuals.strokeWidth!==undefined)shape.setAttribute('stroke-width',String(visuals.strokeWidth));if(visuals.radius!==undefined)shape.setAttribute('rx',String(visuals.radius));}}
    send(record);
   }
  };
