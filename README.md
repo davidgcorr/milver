@@ -17,6 +17,8 @@ Open the URL Vite prints. `npm run build` creates `dist/`, `npm run preview` ser
 
 ## Continuous deployment
 
+Production is served at **https://milver.davidgc.com/** with Cloudflare DNS/CDN in front of GitHub Pages. The repository's Pages custom domain is `milver.davidgc.com`, and the `PAGES_BASE_PATH` Actions variable is `/`. Pushes to `main` still run tests, build, check assets and deploy automatically. The Cloudflare CNAME for `milver` points to `davidgcorr.github.io`; keep that record aligned with the Pages origin. This setup does not need a Cloudflare API token in GitHub Actions.
+
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) validates pull requests and deploys pushes to `main` to GitHub Pages and, when configured, Cloudflare Pages. Tests run before separate builds for the two hosting paths. Each deployment has its own job, so one platform's deployment failure does not stop the other. Pull requests and manual runs from other branches never deploy.
 
 ### GitHub Pages
