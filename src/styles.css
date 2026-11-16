@@ -407,3 +407,9 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .help-reference dt,.help-section-title{font-size:10px;font-weight:550;margin:0;color:var(--foreground)}
 .help-reference dd{font-size:10px;line-height:1.7;color:var(--muted-foreground);margin:0;overflow-wrap:anywhere}
 .help-snippet .snippet-trigger{width:calc(100% - 8px);margin:4px;border-radius:4px;height:30px}
+
+.route-add{cursor:copy;pointer-events:all;outline:none}
+.route-add circle{fill:var(--card);stroke:var(--primary);stroke-width:1.5}
+.route-add path{stroke:var(--primary);stroke-width:1.5}
+.route-add:hover circle,.route-add:focus-visible circle{fill:var(--accent);stroke-width:2.5}
+.route-point:focus-visible{outline:none;stroke-width:3}

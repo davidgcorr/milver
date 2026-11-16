@@ -1,3 +1,4 @@
+import { arrowMasks, type ArrowMask } from './arrow-masks';
 import type { PropertyField, PropertyValue } from './inspector-properties';
 import {normalizeFunctions} from './block-functions';
 import { viewerLogic, viewerRender } from './viewer-code';
@@ -13,7 +14,7 @@ export type Side = 'left' | 'right' | 'top' | 'bottom';
 export type Port = { id: string; name: string; type: 'input' | 'output'; side: Side; offset?: number; variable?: string };
 export type ThemeSettings = { rough?: boolean; roughness?: number; showGrid?: boolean; canvasBackground?: 'plain' | 'aurora' | 'ocean' | 'sunset'; mode: 'light' | 'dark'; hue: number; chroma: number; radius: number };
 export type BlockVisuals = { shadow?: number; shadowColor?: string; strokeWidth?: number; strokeColor?: string; opacity?: number; background?: string; foreground?: string; showHeader?: boolean; showLabel?: boolean; showValue?: boolean; showPortLabels?: boolean; radius?: number };
-export type FlowSettings = { routePoints?: { x: number; y: number }[]; route?: 'smoothstep' | 'bezier'; points?: { x: number; y: number }[]; animation?: 'none' | 'dash' | 'pulse' | 'glow'; animationSize?: number; speed?: number; reverse?: boolean; color?: string; width?: number };
+export type FlowSettings = { mask?: ArrowMask; routePoints?: { x: number; y: number }[]; route?: 'smoothstep' | 'bezier'; points?: { x: number; y: number }[]; animation?: 'none' | 'dash' | 'pulse' | 'glow'; animationSize?: number; speed?: number; reverse?: boolean; color?: string; width?: number };
 export type Canvas = { nodes: BlockNode[]; edges: Edge[]; viewport: Viewport };
 export type BlockData = {
   label: string; kind: string; description: string; color: string; value: string; ports: Port[];
@@ -228,9 +229,9 @@ export function parseDiagram(json: string): Diagram {
 
 export function parseFlowSettings(value: unknown): FlowSettings {
   if (!record(value)) throw new Error('Invalid connection settings.');
-  const { route, points, routePoints, animation, animationSize, speed, reverse, color, width } = value;
-  if (route !== undefined && route !== 'smoothstep' && route !== 'bezier' || animation !== undefined && !['none', 'dash', 'pulse', 'glow'].includes(String(animation)) || animationSize !== undefined && (!finite(animationSize) || animationSize < 1 || animationSize > 32) || speed !== undefined && (!finite(speed) || speed < 0.1 || speed > 20) || width !== undefined && (!finite(width) || width < 1 || width > 8) || reverse !== undefined && typeof reverse !== 'boolean' || color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) throw new Error('Invalid connection settings.');
+  const { mask, route, points, routePoints, animation, animationSize, speed, reverse, color, width } = value;
+  if (mask !== undefined && !arrowMasks.includes(mask as ArrowMask) || route !== undefined && route !== 'smoothstep' && route !== 'bezier' || animation !== undefined && !['none', 'dash', 'pulse', 'glow'].includes(String(animation)) || animationSize !== undefined && (!finite(animationSize) || animationSize < 1 || animationSize > 32) || speed !== undefined && (!finite(speed) || speed < 0.1 || speed > 20) || width !== undefined && (!finite(width) || width < 1 || width > 8) || reverse !== undefined && typeof reverse !== 'boolean' || color !== undefined && (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color))) throw new Error('Invalid connection settings.');
   if (points !== undefined && (!Array.isArray(points) || points.length > 100 || points.some(p => !record(p) || !finite(p.x) || !finite(p.y)))) throw new Error('Invalid connection waypoints.');
   if (routePoints !== undefined && (!Array.isArray(routePoints) || routePoints.length > 200 || routePoints.some(p => !record(p) || !finite(p.x) || !finite(p.y)))) throw new Error('Invalid orthogonal route points.');
-  return Object.fromEntries(Object.entries({ route, points, routePoints, animation, animationSize, speed, reverse, color, width }).filter(([, v]) => v !== undefined)) as FlowSettings;
+  return Object.fromEntries(Object.entries({ mask, route, points, routePoints, animation, animationSize, speed, reverse, color, width }).filter(([, v]) => v !== undefined)) as FlowSettings;
 }

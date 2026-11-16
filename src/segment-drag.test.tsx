@@ -27,3 +27,19 @@ it('drags an intermediate wire segment, records one undo snapshot and releases c
     const count=updates.mock.calls.length;await act(async()=>handle.dispatchEvent(event('pointermove',original+80,50)));expect(updates).toHaveBeenCalledTimes(count);
   }finally{await act(async()=>root.unmount());host.remove();}
 });
+it('adds, nudges and removes Bézier waypoints using visible curve handles',async()=>{
+  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+  let settings:FlowSettings={route:'bezier'};
+  const updates=vi.fn();
+  function View(){const[data,setData]=useState(settings);return createElement(ReactFlowProvider,null,createElement(FlowContext.Provider,{value:{snapshot:vi.fn(),update:(_id,patch)=>{updates(patch);settings={...settings,...patch};setData(settings);}}},createElement('svg',null,createElement(FlowEdge,{id:'curve',source:'a',target:'b',selected:true,sourceX:0,sourceY:0,targetX:200,targetY:100,sourcePosition:Position.Right,targetPosition:Position.Left,data} as any))));}
+  try {
+    await act(async()=>root.render(createElement(View)));
+    await act(async()=>host.querySelector('[aria-label="Add curve point 1"]')!.dispatchEvent(new MouseEvent('click',{bubbles:true})));
+    expect(settings.points).toHaveLength(1);expect(settings.points![0]).toEqual({x:100,y:50});
+    expect(host.querySelectorAll('.route-add')).toHaveLength(2);
+    await act(async()=>host.querySelector('.route-point')!.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,key:'ArrowDown',shiftKey:true})));
+    expect(settings.points![0].y).toBe(51);
+    await act(async()=>host.querySelector('.route-point')!.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,key:'Delete'})));
+    expect(settings.points).toHaveLength(0);
+  } finally {await act(async()=>root.unmount());host.remove();}
+});

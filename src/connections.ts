@@ -65,7 +65,17 @@ function roundedRoute(points: RoutePoint[],radius=8):string {
   return path+` L${points.at(-1)!.x} ${points.at(-1)!.y}`;
 }
 export function moveRouteSegment(points: RoutePoint[],index:number,coordinate:number):RoutePoint[] {
-  if(index<1||index>=points.length-2||!Number.isFinite(coordinate))return points;
+  if(index<0||index>=points.length-1||!Number.isFinite(coordinate))return points;
+  // End segments acquire a short attached stub and a perpendicular dogleg.
+  if(index===0 || index===points.length-2) {
+    const first=index===0, route=first?points:[...points].reverse();
+    const a=route[0],b=route[1],horizontal=a.y===b.y;
+    const length=Math.hypot(b.x-a.x,b.y-a.y), t=Math.min(20,length/3)/(length||1);
+    const stub={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+    const expanded=route.length===2 ? [a,stub,{x:b.x-(b.x-a.x)*t,y:b.y-(b.y-a.y)*t},b] : [a,stub,...route.slice(1)];
+    const moved=moveRouteSegment(expanded,1,coordinate);
+    return first?moved:moved.reverse();
+  }
   const a=points[index],b=points[index+1],horizontal=a.y===b.y;
   const movedA=horizontal?{x:a.x,y:coordinate}:{x:coordinate,y:a.y};
   const movedB=horizontal?{x:b.x,y:coordinate}:{x:coordinate,y:b.y};

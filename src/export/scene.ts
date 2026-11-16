@@ -1,3 +1,4 @@
+import { wireLayers } from '../arrow-masks';
 import {usesBlockFunctions} from '../block-functions';
 import { blockPresentation } from '../block-presentation';
 import { roughPaths } from '../rough';
@@ -120,8 +121,10 @@ export function buildScene(diagram: Diagram, pages: ExportPage[], options: Expor
       const settings = { route: edge.type === 'default' ? 'bezier' : 'smoothstep', ...edge.data } as FlowSettings;
       const d = connectionPath({ sourceX: a.x, sourceY: a.y, sourcePosition: sides[out.side], targetX: b.x, targetY: b.y, targetPosition: sides[input.side] }, settings);
       wires.push({ d, x, y, ...(settings.animationSize !== undefined ? { animationSize: settings.animationSize } : {}), ...(settings.animation === 'glow' ? { glow: true } : {}), ...(settings.color ? { color: settings.color } : {}), ...(settings.reverse ? { reverse: true } : {}) });
-      const sketch = theme.rough ? roughPaths(d,edge.id,settings.color ?? palette.muted,settings.width ?? 1.5,theme.roughness ?? 1).map(p=>`<path d="${p.d}" fill="none" stroke="${p.stroke}" stroke-width="${p.strokeWidth}"/>`).join('') : '';
-      return sketch + `<path d="${d}" fill="none" stroke="${theme.rough ? 'none' : settings.color ?? palette.muted}" stroke-width="${settings.width ?? 1.5}" marker-end="url(#arrow)"/>`;
+      const color = settings.color ?? palette.muted;
+      const layers = wireLayers(d,settings.mask ?? (theme.rough ? 'rough' : 'plain'),color,settings.width ?? 1.5,edge.id,theme.roughness ?? 1);
+      return layers.map(layer=>`<path d="${layer.d}" fill="none" stroke="${layer.stroke}" stroke-width="${layer.strokeWidth}" stroke-opacity="${layer.strokeOpacity ?? 1}" stroke-linecap="round" stroke-linejoin="round"${layer.strokeDasharray ? ` stroke-dasharray="${layer.strokeDasharray}"` : ''}/>`).join('') + `<path d="${d}" fill="none" stroke="transparent" marker-end="url(#arrow)"/>`;
+
     }).join('');
     if(liveMasks)sheet.canvas.nodes.forEach((node,i)=>{
       const v=node.data.visuals??{},top=v.showHeader===false?5:30;
