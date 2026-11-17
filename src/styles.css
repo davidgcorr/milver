@@ -431,3 +431,5 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .shape-editor-point:active{cursor:grabbing}
 .shape-editor-actions{display:flex;flex-wrap:wrap;gap:4px}
 .shape-editor-actions button{font-size:10px}
+
+.release-version{font:9px ui-monospace,monospace;color:var(--muted-foreground);padding:0 4px;white-space:nowrap}

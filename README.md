@@ -15,6 +15,12 @@ npm run dev
 
 Open the URL Vite prints. `npm run build` creates `dist/`, `npm run preview` serves the production build, and `npm test` runs the model tests.
 
+## Release versions and social outputs
+
+Every new main commit increases the generated patch version, displayed in the editor and published at `/version.json`. Full Git history is used in CI; builds never create version-bump commits. After successful tests/builds, the release-output job generates English X, Reddit and LinkedIn drafts, product images in three sizes, GIFs, MP4 videos and editable example JSON. Multi-commit pushes receive a bundle for each first-parent commit. The most recent release also includes a general current-state media set. These drafts are not automatically posted to social networks.
+
+Run `npm run outputs` for a release bundle, or `npm run outputs:current` for the general collection. Browse `outputs/releases/v<version>/index.html` or `outputs/current-state/index.html`. FFmpeg is required for animation; `--stills-only` creates an image-only preview. Read [outputs/README.md](outputs/README.md) for formats and provenance. CI publishes persistent ZIP downloads under [GitHub Releases](https://github.com/davidgcorr/reactflow-recipes/releases), with a 90-day Actions artifact as a second copy. Generated binaries are kept out of Git history.
+
 ## Continuous deployment
 
 Production is served at **https://milver.davidgc.com/** with Cloudflare DNS/CDN in front of GitHub Pages. The repository's Pages custom domain is `milver.davidgc.com`, and the `PAGES_BASE_PATH` Actions variable is `/`. Pushes to `main` still run tests, build, check assets and deploy automatically. The Cloudflare CNAME for `milver` points to `davidgcorr.github.io`; keep that record aligned with the Pages origin. This setup does not need a Cloudflare API token in GitHub Actions.

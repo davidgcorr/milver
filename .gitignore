@@ -9,3 +9,10 @@ dist/
 /public/block-ui.js
 
 /src/generated/
+
+# Versioned, reproducible media bundles are archived as GitHub Release assets.
+/outputs/releases/
+/outputs/current-state/
+/outputs/latest.json
+/public/version.json
+/outputs/*.zip

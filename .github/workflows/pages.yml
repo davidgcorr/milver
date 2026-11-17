@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: pages-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -30,6 +32,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Test release tooling
+        run: npm run test:releases
       - name: Run tests
         run: npm test
       - name: Build for GitHub Pages
@@ -55,20 +59,38 @@ jobs:
           retention-days: 1
 
   deploy:
+    concurrency:
+      group: pages-production
+      cancel-in-progress: false
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Check this is still the production head
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "A newer main commit exists; preserving its production deployment."
+          fi
       - name: Configure GitHub Pages
+        if: steps.head.outputs.current == 'true'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Deploy to GitHub Pages
+        if: steps.head.outputs.current == 'true'
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
 
@@ -113,3 +135,85 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4'
           command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
+
+  release-plan:
+    name: Plan versioned release outputs
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Check out release history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Enumerate new main commits
+        id: plan
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          matrix=$(node scripts/releases/plan.mjs)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  release-outputs:
+    name: Release media for ${{ matrix.sha }}
+    needs: release-plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.release-plan.outputs.matrix) }}
+    concurrency:
+      group: release-outputs-${{ matrix.sha }}
+      cancel-in-progress: false
+    steps:
+      - name: Check out the exact release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ matrix.sha }}
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install media encoder and fonts
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Verify release tooling
+        run: npm run test:releases
+      - name: Build runtime bundles
+        run: node scripts/build-project-runtime.mjs
+      - name: Generate social drafts, images, GIFs and videos
+        run: npm run outputs
+      - name: Generate general current-state media
+        if: matrix.latest
+        run: npm run outputs:current
+      - name: Publish versioned output bundles
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_IS_LATEST: ${{ matrix.latest }}
+        run: node scripts/releases/publish.mjs
+      - name: Preserve output files as a CI artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-outputs-${{ matrix.sha }}
+          path: |
+            outputs/releases/
+            outputs/current-state/
+            outputs/*.zip
+          retention-days: 90
+          if-no-files-found: error

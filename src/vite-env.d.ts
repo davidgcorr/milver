@@ -9,3 +9,5 @@ declare module 'gifenc' {
     bytes(): Uint8Array;
   };
 }
+
+declare const __MILVER_VERSION__: string;
