@@ -112,7 +112,17 @@ function Editor() {
   const documentRef = useRef(document); documentRef.current = document;
   const pathRef = useRef(path); pathRef.current = path;
   const fileRef = useRef<HTMLInputElement>(null);
-  const panStart = useRef<{x:number;y:number}|null>(null);
+  const panStart = useRef<{x:number;y:number;pointer:number}|null>(null);
+  useEffect(() => {
+    const finishPan=(event:PointerEvent)=>{
+      const start=panStart.current;if(!start||start.pointer!==event.pointerId)return;
+      panStart.current=null;
+      const viewport=canvasAt(documentRef.current,pathRef.current).viewport;
+      if(start.x!==viewport.x||start.y!==viewport.y)setMode('select');
+    };
+    window.addEventListener('pointerup',finishPan);window.addEventListener('pointercancel',finishPan);
+    return()=>{window.removeEventListener('pointerup',finishPan);window.removeEventListener('pointercancel',finishPan);};
+  },[]);
   const flow = useReactFlow<BlockNode>();
   const canvas = canvasAt(document, path);
   const nodes = canvas.nodes; const edges = canvas.edges;
@@ -471,8 +481,7 @@ function Editor() {
       onNodeDragStart={() => { snapshot(); setUI(u => ({ ...u, inspector: false })); }} onSelectionDragStart={() => { snapshot(); setUI(u => ({ ...u, inspector: false })); }}
       onNodeClick={() => { setActivePort(null); setUI(u => ({ ...u, inspector: true })); }} onNodeDoubleClick={(_, node) => enter(node.id)}
       onPaneClick={() => setActivePort(null)}
-      onMoveStart={(event,viewport) => { panStart.current = mode === 'pan' && event && event.type !== 'wheel' ? {x:viewport.x,y:viewport.y} : null; }}
-      onMoveEnd={(_,viewport) => { const start=panStart.current;panStart.current=null;if(start&&(start.x!==viewport.x||start.y!==viewport.y))setMode('select'); }}
+      onPointerDownCapture={event => { if(mode==='pan'){const viewport=canvasAt(documentRef.current,pathRef.current).viewport;panStart.current={x:viewport.x,y:viewport.y,pointer:event.pointerId};} }}
       viewport={canvas.viewport} onViewportChange={viewport => {
         const current = canvasAt(documentRef.current, pathRef.current).viewport;
         if (current.x !== viewport.x || current.y !== viewport.y || current.zoom !== viewport.zoom) editCanvas(c => ({ ...c, viewport }), false);
