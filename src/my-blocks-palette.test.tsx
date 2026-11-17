@@ -17,7 +17,7 @@ it('shows saved definitions as draggable block tiles and live local projects as 
   expect(parseDiagram(serializeDiagram(project))).toEqual(project);
   writeProjects(localStorage,[storeProject(project,'local')]);
   const insert=vi.fn(),remove=vi.fn(),open=vi.fn(),loadExample=vi.fn();
-  function View({excalidraw=false}:{excalidraw?:boolean}){const defaults=useContext(ProjectContext);return createElement(RoughContext.Provider,{value:{enabled:excalidraw,roughness:1,excalidraw}},createElement(TooltipProvider,null,createElement(ProjectContext.Provider,{value:{...defaults,myBlocks:[saved],insertSavedBlock:insert,removeSavedBlock:remove,openProject:open,loadExample}},createElement(MyBlocks,{addExample(){}}))));}
+  function View({excalidraw=false}:{excalidraw?:boolean}){const defaults=useContext(ProjectContext);return createElement(RoughContext.Provider,{value:{enabled:excalidraw,roughness:1}},createElement(TooltipProvider,null,createElement(ProjectContext.Provider,{value:{...defaults,myBlocks:[saved],insertSavedBlock:insert,removeSavedBlock:remove,openProject:open,loadExample}},createElement(MyBlocks,{addExample(){}}))));}
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
   try{
     await act(async()=>root.render(createElement(View)));

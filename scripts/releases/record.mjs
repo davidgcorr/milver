@@ -55,7 +55,7 @@ export async function startRecorder(baseUrl){
    start=Date.now();await pause(800);
    const checks=[{input:2,output:4}];
    await input.press('ArrowRight');await resultIs(result,6);checks.push({input:3,output:6});await pause(900);
-   await input.press('ArrowRight');await input.press('ArrowRight');await resultIs(result,10);checks.push({input:5,output:10});await pause(1000);
+   await input.press('ArrowRight');await resultIs(result,8);await input.press('ArrowRight');await resultIs(result,10);checks.push({input:5,output:10});await pause(1000);
    await page.screenshot({path:join(media,`${feature}-screen.png`),animations:'allow'});
    let interaction='Changed the real slider and observed helpers.double() updating the connected output.';
    if(feature==='excalidraw'){
@@ -63,6 +63,13 @@ export async function startRecorder(baseUrl){
     if(await page.locator('.block-type-trail,.block-type-expand').count())throw new Error('Sketch mode still shows type headers');
     if(!(await page.locator('.rough-block-outline').count()))throw new Error('Sketch mode has no rough outlines');
     if(await page.locator('.react-flow__handle .rough-port-outline').count()!==await page.locator('.react-flow__handle').count())throw new Error('Sketch ports are missing rough circles');
+    for(const fill of await page.locator('.rough-port-outline path').evaluateAll(paths=>paths.map(path=>path.getAttribute('fill'))))if(fill!=='none')throw new Error('Sketch circles must have no fill');
+    await page.getByRole('button',{name:'Appearance',exact:true}).click();
+    const mode=page.getByRole('switch',{name:'Excalidraw mode',exact:true});
+    if(await mode.getAttribute('aria-checked')!=='true')throw new Error('Appearance mode is not synchronized');
+    await mode.click();
+    if(await page.getByRole('button',{name:'Excalidraw mode',exact:true}).getAttribute('aria-pressed')!=='false')throw new Error('Toolbar mode is not synchronized');
+    await mode.click();await page.getByRole('button',{name:'Close appearance',exact:true}).click();
     await tool(page,'workspace',{patch:{library:true,libraryTab:'blocks',inspector:false}});
     const glyphs=page.locator('#library-panel-blocks .palette-glyph');
     await glyphs.first().waitFor({state:'visible'});

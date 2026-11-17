@@ -79,3 +79,23 @@ it('imports text and CSV sources through the inspector and reflects their settin
   const data=JSON.parse(host.querySelector('#panel-json .cm-content')!.textContent!);
   expect(JSON.parse(data.value)).toMatchObject({text:'name,value\nAda,2',header:true,numeric:true});
 }));
+
+it('uses the same mode in the top toolbar, Appearance and saved JSON',async()=>workspace(async host=>{
+  const toggle=host.querySelector<HTMLButtonElement>('button[aria-label="Excalidraw mode"]')!;
+  await act(async()=>toggle.click());
+  expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  await act(async()=>host.querySelector<HTMLButtonElement>('button[aria-label="Appearance"]')!.click());
+  const appearance=host.querySelector<HTMLButtonElement>('[role="switch"][aria-label="Excalidraw mode"]')!;
+  expect(appearance.getAttribute('aria-checked')).toBe('true');
+  expect(host.querySelector('[aria-label="Roughness level"]')).not.toBeNull();
+  await act(async()=>appearance.click());
+  expect(toggle.getAttribute('aria-pressed')).toBe('false');
+  expect(host.querySelector('.block-type-trail')).not.toBeNull();
+  expect(host.querySelector('.rough-port-outline')).toBeNull();
+  await act(async()=>appearance.click());
+  expect(toggle.getAttribute('aria-pressed')).toBe('true');
+  for(const path of host.querySelectorAll('.rough-port-outline path'))expect(path.getAttribute('fill')).toBe('none');
+  await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="JSON editor"]')!.click());
+  const json=JSON.parse(document.querySelector<HTMLTextAreaElement>('[aria-label="Diagram JSON"]')!.value);
+  expect(json.theme.rough).toBe(true);expect(json.theme).not.toHaveProperty('excalidraw');
+}));

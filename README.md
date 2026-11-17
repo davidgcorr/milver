@@ -366,6 +366,6 @@ Supported types are `number` (`min`, `max`, `step`), `text`, `boolean`, `color` 
 
 ### Sketch mode and quick value edits
 
-Use **Excalidraw mode** in the top toolbar to switch the entire project to rough outlines, rough circular ports, hidden type headers, and labels below blocks. Left-panel miniatures use matching rough outlines and keep their icons. Switch it off to restore each block's visibility settings. The mode is saved in JSON backups and respected by visual exports.
+Use **Excalidraw mode** in the top toolbar or Appearance panel (the same setting previously called Rough mode) to switch the entire project to rough outlines, hollow rough circular ports, hidden type headers, and labels below blocks. Left-panel miniatures use matching rough outlines and keep their icons. Switch it off to restore each block's visibility settings. The mode is saved in JSON backups and respected by visual exports.
 
 Double-click a String, Boolean, Number, Vector, Matrix, or Tensor block to edit its value directly. Press Enter or click outside to save and trigger its normal code/render flow; Shift+Enter inserts a newline and Escape cancels. Code-controlled values remain locked.

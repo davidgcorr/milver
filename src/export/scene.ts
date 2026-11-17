@@ -95,7 +95,7 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
     const absolute = handlePoint(node, port); const x = absolute.x - node.position.x, y = absolute.y - node.position.y;
     const left = port.side === 'left', right = port.side === 'right', top = port.side === 'top';
     const color=port.type==='input'?'#0284c7':palette.primary;
-    const portShape=sketch ? `<g data-rough-port="true">${roughGenerator.toPaths(roughGenerator.ellipse(x,y,boundary?6:12,boundary?6:12,{seed:roughSeed(`${index}-${port.id}`),stroke:color,strokeWidth:1,roughness,fill:port.type==='output'?color:palette.card,fillStyle:'solid'})).map(p=>`<path d="${p.d}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${p.strokeWidth}"/>`).join('')}</g>` : `<circle cx="${x}" cy="${y}" r="${boundary ? 3 : 5.5}" fill="${palette.card}" stroke="${color}"/><circle cx="${x}" cy="${y}" r="2.5" fill="${port.type === 'input' ? palette.card : palette.primary}" stroke="${color}"/>`;
+    const portShape=sketch ? `<g data-rough-port="true">${roughGenerator.toPaths(roughGenerator.ellipse(x,y,boundary?6:12,boundary?6:12,{seed:roughSeed(`${index}-${port.id}`),stroke:color,strokeWidth:1,roughness,fill:'none'})).map(p=>`<path d="${p.d}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${p.strokeWidth}"/>`).join('')}</g>` : `<circle cx="${x}" cy="${y}" r="${boundary ? 3 : 5.5}" fill="${palette.card}" stroke="${color}"/><circle cx="${x}" cy="${y}" r="2.5" fill="${port.type === 'input' ? palette.card : palette.primary}" stroke="${color}"/>`;
     return portShape + (v.showPortLabels === false || boundary ? '' : text(left ? x + 12 : right ? x - 12 : x, left || right ? y + 2 : top ? y + 17 : y - 11, port.name, 7, `text-anchor="${left ? 'start' : right ? 'end' : 'middle'}" fill="${palette.muted}" clip-path="url(#${clip})"`));
   }).join('');
   const interactive = destination === undefined ? '' : ` data-enter="${destination}" role="button" tabindex="0" aria-label="${escapeXml(`Enter ${data.label}`)}" style="cursor:pointer"`;
@@ -107,11 +107,10 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
   return `<g data-block="${index}" transform="translate(${node.position.x} ${node.position.y})"${v.opacity !== undefined ? ` opacity="${v.opacity}"` : ''}${interactive}><title>${escapeXml(data.label + (data.description ? ': ' + data.description : ''))}</title><defs>${shadow}<clipPath id="${clip}">${customShape?`<path d="${shapePath}"/>`:`<rect x="6" y="5" width="${w - 12}" height="${h - 10}"/>`}</clipPath><clipPath id="${textClip}"><rect x="${boundary ? w/2-75 : 12}" y="${h + 4}" width="${boundary ? 150 : w - 24}" height="24"/></clipPath></defs>${shadow ? `<g filter="url(#${shadowId})">${frame}${outline}</g>` : frame+outline}${v.showHeader === false || boundary ? '' : customShape ? text(10,-9,typePath,8,`opacity="0.65" fill="${palette.muted}"`) : `<path d="M0 25H${w}" stroke="${palette.border}"/>` + text(10, 16, typePath, 8, `opacity="0.65" fill="${palette.muted}" clip-path="url(#${clip})"`)}${customShape?`<g clip-path="url(#${clip})">${symbol}</g>`:symbol}${v.showLabel === false ? '' : text(w / 2, h + 20, data.label, 10, `text-anchor="middle" fill="${palette.muted}" clip-path="url(#${textClip})"`)}${parent ? `<path d="m${w - 20} ${h + 10} 4 4-4 4" fill="none" stroke="${palette.muted}" stroke-width="1.2"/>` : ''}${ports}</g>`;
 }
 export function buildScene(diagram: Diagram, pages: ExportPage[], options: ExportOptions, interactive = false, liveMasks = false): ExportScene {
-  const savedTheme = diagram.theme ?? defaultTheme;
-  const theme = savedTheme.excalidraw ? {...savedTheme, rough:true, roughness:Math.max(1,savedTheme.roughness??1)} : savedTheme;
+  const theme = diagram.theme ?? defaultTheme;
   const palette = exportPalette(theme);
   const sheets = pages.map(page => {
-    const canvas = theme.excalidraw ? {...page.canvas,nodes:page.canvas.nodes.map(node=>({...node,data:{...node.data,visuals:{...node.data.visuals,showHeader:false,showLabel:true}}}))} : page.canvas;
+    const canvas = theme.rough ? {...page.canvas,nodes:page.canvas.nodes.map(node=>({...node,data:{...node.data,visuals:{...node.data.visuals,showHeader:false,showLabel:true}}}))} : page.canvas;
     return {...page,canvas,bounds:canvasBounds(canvas)};
   });
   const width = Math.max(400, ...sheets.map(s => s.bounds.width + 128));

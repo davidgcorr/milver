@@ -133,13 +133,14 @@ it('links the correct parent even when blocks occupy identical positions', async
 
 it('roundtrips Excalidraw mode and applies it to exports without changing saved block preferences',async()=>{
   const {parseDiagram,serializeDiagram,defaultTheme}=await import('../model');
-  const d=exampleDiagram();d.theme={...defaultTheme,excalidraw:true};
+  const d=exampleDiagram();d.theme={...defaultTheme,rough:true};
   d.nodes=[makeNode('constant',{x:0,y:0},'source')];d.edges=[];
   d.nodes[0].data.visuals={showHeader:true,showLabel:false};
-  const restored=parseDiagram(serializeDiagram(d));expect(restored.theme?.excalidraw).toBe(true);
+  const restored=parseDiagram(serializeDiagram(d));expect(restored.theme?.rough).toBe(true);
   const scene=buildScene(restored,collectPages(restored,[],'current'),options);
   expect(scene.rough).toBe(true);expect(scene.body).not.toContain('Sources › Constant');
   expect(scene.body).toContain('data-rough-port="true"');
+  for(const [,port] of scene.body.matchAll(/<g data-rough-port="true">([\s\S]*?)<\/g>/g)){expect(port).toContain('fill="none"');expect(port).not.toMatch(/fill="(?!none)/);}
   expect(scene.body).toContain('y="136" font-size="10"');
   expect(restored.nodes[0].data.visuals).toEqual({showHeader:true,showLabel:false});
 });

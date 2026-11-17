@@ -100,12 +100,13 @@ it('temporarily hides type information in Excalidraw mode and restores original 
   const {RoughContext}=await import('./components/rough-shapes');
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
   const node=makeJsNode('String',{x:0,y:0},'string');node.data.visuals={showLabel:false};
-  const view=(excalidraw:boolean)=>createElement(RoughContext.Provider,{value:{enabled:excalidraw,roughness:1,excalidraw}},createElement(ReactFlowProvider,null,createElement(Block,{id:node.id,data:node.data,selected:false,type:'block',dragging:false,zIndex:0,isConnectable:true,positionAbsoluteX:0,positionAbsoluteY:0,selectable:true,deletable:true,draggable:true} as any)));
+  const view=(excalidraw:boolean)=>createElement(RoughContext.Provider,{value:{enabled:excalidraw,roughness:1}},createElement(ReactFlowProvider,null,createElement(Block,{id:node.id,data:node.data,selected:false,type:'block',dragging:false,zIndex:0,isConnectable:true,positionAbsoluteX:0,positionAbsoluteY:0,selectable:true,deletable:true,draggable:true} as any)));
   try{
     await act(async()=>root.render(view(true)));
     expect(host.querySelector('.rough-block-outline')).not.toBeNull();
     expect(host.querySelectorAll('.react-flow__handle .rough-port-outline')).toHaveLength(node.data.ports.length);
     expect(host.querySelectorAll('.react-flow__handle')).toHaveLength(node.data.ports.length);
+    for(const path of host.querySelectorAll('.rough-port-outline path'))expect(path.getAttribute('fill')).toBe('none');
     expect(host.querySelector('.block-type-trail,.block-type-expand')).toBeNull();
     expect(host.querySelector('.block-footer')?.textContent).toBe('String');
     await act(async()=>root.render(view(false)));

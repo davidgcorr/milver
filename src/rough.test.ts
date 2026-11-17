@@ -27,3 +27,14 @@ it('round trips roughness and applies it to blocks, wires and exported arrows',(
   expect(roughPaths('M0 0L100 100','test','#000',1,0)).not.toEqual(roughPaths('M0 0L100 100','test','#000',1,3));
   d.theme.roughness=3.1;expect(()=>parseDiagram(serializeDiagram(d))).toThrow('roughness');
 });
+
+it('migrates either legacy sketch flag to one canonical rough setting',()=>{
+  for(const flags of [{rough:true,excalidraw:false},{rough:false,excalidraw:true},{excalidraw:true},{rough:true}]){
+    const d=exampleDiagram();d.theme={...defaultTheme,...flags};
+    const restored=parseDiagram(JSON.stringify(d));
+    expect(restored.theme?.rough).toBe(true);
+    expect(restored.theme).not.toHaveProperty('excalidraw');
+    restored.theme!.rough=false;
+    expect(parseDiagram(serializeDiagram(restored)).theme?.rough).toBe(false);
+  }
+});

@@ -14,7 +14,7 @@ import type { Edge, Node, Viewport } from '@xyflow/react';
 
 export type Side = 'left' | 'right' | 'top' | 'bottom';
 export type Port = { id: string; name: string; type: 'input' | 'output'; side: Side; offset?: number; variable?: string };
-export type ThemeSettings = { excalidraw?: boolean; rough?: boolean; roughness?: number; showGrid?: boolean; canvasBackground?: 'plain' | 'aurora' | 'ocean' | 'sunset'; mode: 'light' | 'dark'; hue: number; chroma: number; radius: number };
+export type ThemeSettings = { rough?: boolean; roughness?: number; showGrid?: boolean; canvasBackground?: 'plain' | 'aurora' | 'ocean' | 'sunset'; mode: 'light' | 'dark'; hue: number; chroma: number; radius: number };
 export type BlockVisuals = { shape?: BlockShape; shadow?: number; shadowColor?: string; strokeWidth?: number; strokeColor?: string; opacity?: number; background?: string; foreground?: string; showHeader?: boolean; showLabel?: boolean; showValue?: boolean; showPortLabels?: boolean; radius?: number };
 export type FlowSettings = { mask?: ArrowMask; routePoints?: { x: number; y: number }[]; route?: 'smoothstep' | 'bezier'; points?: { x: number; y: number }[]; animation?: 'none' | 'dash' | 'pulse' | 'glow'; animationSize?: number; speed?: number; reverse?: boolean; color?: string; width?: number };
 export type Canvas = { nodes: BlockNode[]; edges: Edge[]; viewport: Viewport };
@@ -213,7 +213,7 @@ export function parseDiagram(json: string): Diagram {
     if (t.excalidraw !== undefined && typeof t.excalidraw !== 'boolean') throw new Error('Invalid Excalidraw mode.');
     if (t.rough !== undefined && typeof t.rough !== 'boolean') throw new Error('Invalid rough mode.');
     if (t.showGrid !== undefined && typeof t.showGrid !== 'boolean' || t.canvasBackground !== undefined && !['plain', 'aurora', 'ocean', 'sunset'].includes(String(t.canvasBackground))) throw new Error('Invalid canvas appearance.');
-    theme = { ...(t.excalidraw !== undefined ? { excalidraw: t.excalidraw as boolean } : {}), mode: t.mode, hue: t.hue, chroma: t.chroma, radius: t.radius, ...(t.roughness !== undefined ? { roughness: t.roughness as number } : {}), ...(t.rough !== undefined ? { rough: t.rough as boolean } : {}), ...(t.showGrid !== undefined ? { showGrid: t.showGrid as boolean } : {}), ...(t.canvasBackground !== undefined ? { canvasBackground: t.canvasBackground as ThemeSettings['canvasBackground'] } : {}) };
+    theme = { mode: t.mode, hue: t.hue, chroma: t.chroma, radius: t.radius, ...(t.roughness !== undefined ? { roughness: t.roughness as number } : {}), ...(t.rough !== undefined || t.excalidraw !== undefined ? { rough: t.rough === true || t.excalidraw === true } : {}), ...(t.showGrid !== undefined ? { showGrid: t.showGrid as boolean } : {}), ...(t.canvasBackground !== undefined ? { canvasBackground: t.canvasBackground as ThemeSettings['canvasBackground'] } : {}) };
   }
   let myBlocks: SavedBlock[] | undefined;
   if (d.myBlocks !== undefined) {

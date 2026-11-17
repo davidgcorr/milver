@@ -50,7 +50,7 @@ function particle(path:string,progress:number){
 }
 export function renderMedia(feature:string,meta:{tag:string;shortCommit:string;summary?:string;maintenance?:boolean},width=1600,height=900,phase:number|null=null):string {
  const content=copy[feature]??copy.overview,square=width===height,scale=width/1600,H=height/scale;
- const diagram=demonstration(feature,phase??0);if(feature==='excalidraw')diagram.theme={...defaultTheme,excalidraw:true};parseDiagram(serializeDiagram(diagram));
+ const diagram=demonstration(feature,phase??0);if(feature==='excalidraw')diagram.theme={...defaultTheme,rough:true};parseDiagram(serializeDiagram(diagram));
  const scene=buildScene(diagram,collectPages(diagram,[],'current'),{...defaultExportOptions,title:false});
  let svg=sceneSvg(scene,{transparent:true,grid:true});
  if(phase!==null){const dots=scene.wires.map((wire,i)=>{const p=particle(wire.d,(phase+i*.23)%1);return `<circle cx="${p.x+wire.x}" cy="${p.y+wire.y}" r="6" fill="#4f46e5" stroke="#ffffff" stroke-width="2"/>`;}).join('');svg=svg.replace('</svg>',dots+'</svg>');}

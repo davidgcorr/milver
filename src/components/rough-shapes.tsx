@@ -1,10 +1,10 @@
 import { createContext, useContext, useMemo } from 'react';
 import { roughGenerator, roughPaths, roughSeed } from '@/rough';
-export const RoughContext=createContext<{enabled:boolean;roughness:number;excalidraw?:boolean}>({ enabled: false, roughness: 1 });
-export function RoughPort({id,output=false,color='currentColor'}:{id:string;output?:boolean;color?:string}) {
+export const RoughContext=createContext<{enabled:boolean;roughness:number}>({ enabled: false, roughness: 1 });
+export function RoughPort({id,color='currentColor'}:{id:string;color?:string}) {
   const {roughness}=useContext(RoughContext);
-  const paths=useMemo(()=>roughGenerator.toPaths(roughGenerator.ellipse(8,8,12,12,{seed:roughSeed(id),stroke:color,strokeWidth:1,roughness,fill:output?color:'var(--card)',fillStyle:'solid'})),[id,color,output,roughness]);
-  return <svg className="rough-port-outline" viewBox="0 0 16 16" aria-hidden="true">{paths.map((path,i)=><path key={i} d={path.d} stroke={path.stroke} strokeWidth={path.strokeWidth} fill={path.fill}/>)}</svg>;
+  const paths=useMemo(()=>roughGenerator.toPaths(roughGenerator.ellipse(8,8,12,12,{seed:roughSeed(id),stroke:color,strokeWidth:1,roughness})),[id,color,roughness]);
+  return <svg className="rough-port-outline" viewBox="0 0 16 16" aria-hidden="true">{paths.map((path,i)=><path key={i} d={path.d} stroke={path.stroke} strokeWidth={path.strokeWidth} fill="none"/>)}</svg>;
 }
 export function RoughPath({ d,id,color,width=1.5 }: { d:string;id:string;color:string;width?:number }) {
   const { roughness }=useContext(RoughContext);
