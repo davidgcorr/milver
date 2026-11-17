@@ -94,7 +94,7 @@ it('uses the same mode in the top toolbar, Appearance and saved JSON',async()=>w
   expect(host.querySelector('.rough-port-outline')).toBeNull();
   await act(async()=>appearance.click());
   expect(toggle.getAttribute('aria-pressed')).toBe('true');
-  for(const path of host.querySelectorAll('.rough-port-outline path'))expect(path.getAttribute('fill')).toBe('none');
+  for(const port of host.querySelectorAll('.rough-port-outline')){expect(port.querySelector('[fill="#ffffff"]')).not.toBeNull();for(const path of port.querySelectorAll('path'))expect(['none','#ffffff']).toContain(path.getAttribute('fill'));}
   await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="JSON editor"]')!.click());
   const json=JSON.parse(document.querySelector<HTMLTextAreaElement>('[aria-label="Diagram JSON"]')!.value);
   expect(json.theme.rough).toBe(true);expect(json.theme).not.toHaveProperty('excalidraw');

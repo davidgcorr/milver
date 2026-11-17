@@ -38,3 +38,11 @@ it('migrates either legacy sketch flag to one canonical rough setting',()=>{
     expect(parseDiagram(serializeDiagram(restored)).theme?.rough).toBe(false);
   }
 });
+
+it('exports rough outlines with the configured per-block corner radius',()=>{
+  const d=exampleDiagram();d.theme={...defaultTheme,rough:true,radius:0};d.nodes=[d.nodes[0]];d.edges=[];
+  const outlines=()=>buildScene(d,collectPages(d,[],'current'),defaultExportOptions).body.match(/<path d="[^"]+" fill="none" stroke="[^"]+" stroke-width="1.2"\/>/g);
+  const square=outlines();expect(square?.length).toBeGreaterThan(0);
+  d.nodes[0].data.visuals={radius:28};expect(outlines()).not.toEqual(square);
+  d.nodes[0].data.visuals={radius:0};d.theme.radius=20;expect(outlines()).toEqual(square);
+});

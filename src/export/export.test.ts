@@ -140,7 +140,7 @@ it('roundtrips Excalidraw mode and applies it to exports without changing saved 
   const scene=buildScene(restored,collectPages(restored,[],'current'),options);
   expect(scene.rough).toBe(true);expect(scene.body).not.toContain('Sources › Constant');
   expect(scene.body).toContain('data-rough-port="true"');
-  for(const [,port] of scene.body.matchAll(/<g data-rough-port="true">([\s\S]*?)<\/g>/g)){expect(port).toContain('fill="none"');expect(port).not.toMatch(/fill="(?!none)/);}
+  for(const [,port] of scene.body.matchAll(/<g data-rough-port="true">([\s\S]*?)<\/g>/g)){expect(port).toContain('fill="#ffffff"');expect(port).not.toMatch(/fill="(?!none|#ffffff)/);}
   expect(scene.body).toContain('y="136" font-size="10"');
   expect(restored.nodes[0].data.visuals).toEqual({showHeader:true,showLabel:false});
 });
