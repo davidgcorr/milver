@@ -70,3 +70,43 @@ it('keeps a math block iframe mounted through saved-state and value updates',asy
     expect(host.querySelector('iframe')).toBe(frame);
   } finally {await act(async()=>root.unmount());host.remove();}
 });
+
+it('edits all text datatypes on double click, commits once on exit, and preserves the renderer iframe',async()=>{
+  const {PreviewContext}=await import('./components/module-mask');
+  for(const recipe of ['String','Boolean','Number','Vector','Matrix','Tensor']){
+    const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+    const node=makeJsNode(recipe,{x:0,y:0},recipe),setValue=vi.fn();
+    function View(){const preview=useContext(PreviewContext);return createElement(PreviewContext.Provider,{value:{...preview,setValue}},createElement(ReactFlowProvider,null,createElement(Block,{id:node.id,data:node.data,selected:true,type:'block',dragging:false,zIndex:0,isConnectable:true,positionAbsoluteX:0,positionAbsoluteY:0,selectable:true,deletable:true,draggable:true} as any)));}
+    try{
+      await act(async()=>root.render(createElement(View)));
+      const frame=host.querySelector('iframe');
+      await act(async()=>host.querySelector('.diagram-block')!.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})));
+      const field=host.querySelector('textarea')!;
+      expect(field.value).toBe(node.data.value);expect(document.activeElement).toBe(field);
+      const next=({String:'Edited text',Boolean:'false',Number:'9',Vector:'[9]',Matrix:'[[9]]',Tensor:'[[[9]]]'} as Record<string,string>)[recipe];
+      await act(async()=>{Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value')!.set!.call(field,next);field.dispatchEvent(new Event('input',{bubbles:true}));});
+      expect(setValue).not.toHaveBeenCalled();
+      await act(async()=>document.body.dispatchEvent(new MouseEvent('pointerdown',{bubbles:true})));
+      expect(setValue).toHaveBeenCalledExactlyOnceWith(node.id,next);
+      expect(host.querySelector('textarea')).toBeNull();expect(host.querySelector('iframe')).toBe(frame);
+      await act(async()=>host.querySelector('.diagram-block')!.dispatchEvent(new MouseEvent('dblclick',{bubbles:true})));
+      await act(async()=>host.querySelector('textarea')!.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true})));
+      expect(setValue).toHaveBeenCalledTimes(1);expect(host.querySelector('textarea')).toBeNull();
+    }finally{await act(async()=>root.unmount());host.remove();}
+  }
+});
+
+it('temporarily hides type information in Excalidraw mode and restores original block visibility',async()=>{
+  const {RoughContext}=await import('./components/rough-shapes');
+  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
+  const node=makeJsNode('String',{x:0,y:0},'string');node.data.visuals={showLabel:false};
+  const view=(excalidraw:boolean)=>createElement(RoughContext.Provider,{value:{enabled:excalidraw,roughness:1,excalidraw}},createElement(ReactFlowProvider,null,createElement(Block,{id:node.id,data:node.data,selected:false,type:'block',dragging:false,zIndex:0,isConnectable:true,positionAbsoluteX:0,positionAbsoluteY:0,selectable:true,deletable:true,draggable:true} as any)));
+  try{
+    await act(async()=>root.render(view(true)));
+    expect(host.querySelector('.rough-block-outline')).not.toBeNull();
+    expect(host.querySelector('.block-type-trail,.block-type-expand')).toBeNull();
+    expect(host.querySelector('.block-footer')?.textContent).toBe('String');
+    await act(async()=>root.render(view(false)));
+    expect(host.querySelector('.block-type-trail')).not.toBeNull();expect(host.querySelector('.block-footer')).toBeNull();
+  }finally{await act(async()=>root.unmount());host.remove();}
+});

@@ -363,3 +363,9 @@ return <strong style={{ color: accent }}>{String(state.result ?? '')}</strong>;
 ```
 
 Supported types are `number` (`min`, `max`, `step`), `text`, `boolean`, `color` (six-digit hex), and `select` (`options: ['Small', 'Large']`). Every field requires `type` and `default`; `label` is optional. Names must be unique JavaScript-style identifiers per block, with up to 64 fields. Code and Render share the same names and can also read saved values through `block.parameters`. Declare fields unconditionally with stable options. Existing fields remain saved if their declaration is removed; remove both the field and its parameter in Block JSON to delete them.
+
+### Sketch mode and quick value edits
+
+Use **Excalidraw mode** in the top toolbar to switch the entire project to rough outlines, hidden type headers, and labels below blocks. Switch it off to restore each block's visibility settings. The mode is saved in JSON backups and respected by visual exports.
+
+Double-click a String, Boolean, Number, Vector, Matrix, or Tensor block to edit its value directly. Press Enter or click outside to save and trigger its normal code/render flow; Shift+Enter inserts a newline and Escape cancels. Code-controlled values remain locked.

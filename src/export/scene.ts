@@ -105,8 +105,13 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
   return `<g data-block="${index}" transform="translate(${node.position.x} ${node.position.y})"${v.opacity !== undefined ? ` opacity="${v.opacity}"` : ''}${interactive}><title>${escapeXml(data.label + (data.description ? ': ' + data.description : ''))}</title><defs>${shadow}<clipPath id="${clip}">${customShape?`<path d="${shapePath}"/>`:`<rect x="6" y="5" width="${w - 12}" height="${h - 10}"/>`}</clipPath><clipPath id="${textClip}"><rect x="${boundary ? w/2-75 : 12}" y="${h + 4}" width="${boundary ? 150 : w - 24}" height="24"/></clipPath></defs>${shadow ? `<g filter="url(#${shadowId})">${frame}${outline}</g>` : frame+outline}${v.showHeader === false || boundary ? '' : customShape ? text(10,-9,typePath,8,`opacity="0.65" fill="${palette.muted}"`) : `<path d="M0 25H${w}" stroke="${palette.border}"/>` + text(10, 16, typePath, 8, `opacity="0.65" fill="${palette.muted}" clip-path="url(#${clip})"`)}${customShape?`<g clip-path="url(#${clip})">${symbol}</g>`:symbol}${v.showLabel === false ? '' : text(w / 2, h + 20, data.label, 10, `text-anchor="middle" fill="${palette.muted}" clip-path="url(#${textClip})"`)}${parent ? `<path d="m${w - 20} ${h + 10} 4 4-4 4" fill="none" stroke="${palette.muted}" stroke-width="1.2"/>` : ''}${ports}</g>`;
 }
 export function buildScene(diagram: Diagram, pages: ExportPage[], options: ExportOptions, interactive = false, liveMasks = false): ExportScene {
-  const theme = diagram.theme ?? defaultTheme; const palette = exportPalette(theme);
-  const sheets = pages.map(page => ({ ...page, bounds: canvasBounds(page.canvas) }));
+  const savedTheme = diagram.theme ?? defaultTheme;
+  const theme = savedTheme.excalidraw ? {...savedTheme, rough:true, roughness:Math.max(1,savedTheme.roughness??1)} : savedTheme;
+  const palette = exportPalette(theme);
+  const sheets = pages.map(page => {
+    const canvas = theme.excalidraw ? {...page.canvas,nodes:page.canvas.nodes.map(node=>({...node,data:{...node.data,visuals:{...node.data.visuals,showHeader:false,showLabel:true}}}))} : page.canvas;
+    return {...page,canvas,bounds:canvasBounds(canvas)};
+  });
   const width = Math.max(400, ...sheets.map(s => s.bounds.width + 128));
   const masks:ExportMask[]=[];
   const wires: ExportWire[] = []; let yOffset = 0;

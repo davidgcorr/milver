@@ -58,7 +58,18 @@ export async function startRecorder(baseUrl){
    await input.press('ArrowRight');await input.press('ArrowRight');await resultIs(result,10);checks.push({input:5,output:10});await pause(1000);
    await page.screenshot({path:join(media,`${feature}-screen.png`),animations:'allow'});
    let interaction='Changed the real slider and observed helpers.double() updating the connected output.';
-   if(feature==='arrows'){
+   if(feature==='excalidraw'){
+    await page.getByRole('button',{name:'Excalidraw mode',exact:true}).click();
+    if(await page.locator('.block-type-trail,.block-type-expand').count())throw new Error('Sketch mode still shows type headers');
+    if(!(await page.locator('.rough-block-outline').count()))throw new Error('Sketch mode has no rough outlines');
+    interaction+=' Switched the complete live diagram into Excalidraw mode.';await pause(1700);
+   }else if(feature==='editing'){
+    await page.locator('.react-flow__node[data-id="editable-text"] .block-body').dblclick();
+    await page.getByRole('textbox',{name:'Edit String value',exact:true}).fill('Edited on the canvas');
+    await page.getByRole('textbox',{name:'Edit String value',exact:true}).press('Enter');
+    await page.frameLocator('iframe[data-milver-block-id="editable-text"]').getByText('Edited on the canvas',{exact:true}).waitFor();
+    interaction+=' Edited a String directly on the canvas and verified its real renderer updated.';await pause(1700);
+   }else if(feature==='arrows'){
     const edge=page.locator('.react-flow__edge[data-id="signal-logic"] .react-flow__edge-path');const p=await pointOnPath(edge);await page.mouse.click(p.x,p.y);
     await page.getByRole('button',{name:'Add curve point 1',exact:true}).click();
     const handle=page.locator('.route-point').first();const box=await handle.boundingBox();if(!box)throw new Error('Curve point is not visible');
@@ -85,6 +96,7 @@ export async function startRecorder(baseUrl){
    }else{
     await pause(1500);
    }
+   await page.screenshot({path:join(media,`${feature}-screen.png`),animations:'allow'});
    const captureSeconds=(Date.now()-start)/1000;const video=page.video();await context.close();
    const raw=join(media,`${feature}-browser.webm`);await video.saveAs(raw);
    const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_format','-of','json',raw],{encoding:'utf8'}));

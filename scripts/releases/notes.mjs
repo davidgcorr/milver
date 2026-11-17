@@ -1,5 +1,7 @@
 import { git } from './version.mjs';
 export const featureCatalog={
+  excalidraw:{title:'Sketch without the chrome',detail:'Switch the whole diagram to rough outlines with clean blocks and labels below.',paths:['src/components/rough-shapes','src/components/appearance']},
+  editing:{title:'Edit the value, right on the canvas',detail:'Double-click strings, booleans, numbers, vectors, matrices and tensors; save to run and render again.',paths:['src/components/inline-value-editor','src/components/block-node']},
   overview:{title:'Build ideas as diagrams',detail:'Compose JavaScript blocks, connect data and explore nested canvases.',paths:['src/App.tsx','src/components/block-node','src/components/inspector','src/styles.css']},
   arrows:{title:'Shape the connections',detail:'Edit Bézier waypoints, move orthogonal segments and choose pipe, rough, spiral or dashed arrow styles.',paths:['src/arrow','src/connections','src/components/flow-edge']},
   shapes:{title:'Give every block a shape',detail:'Use circles, ellipses, diamonds, polygons and custom Bézier outlines with ports that follow the border.',paths:['src/block-shapes','src/components/block-shape','src/components/visual-properties']},
@@ -15,6 +17,8 @@ export function changesFor(sha,cwd=process.cwd()){
   return {subject,files,parent:parent??null,features:selected.length?selected:['overview'],maintenance};
 }
 const angles={
+ excalidraw:{hook:'Sometimes the best diagram needs less UI.',x:'One toggle: rough outlines, clean blocks, labels underneath.\n\nSwitch back when you want the details. The JavaScript keeps running either way.',reddit:'I added a sketch mode to my runnable diagram editor — does less visual chrome make an explanation clearer?',problem:'Type headers help when building a graph, but can distract when explaining the idea.',demo:'Toggle Excalidraw mode in the top bar. Every block gets rough outlines and loses its type header, while its label and live content remain.',lesson:'The same working diagram can serve as both a workspace and an explanation.',question:'When presenting a technical diagram, which details do you hide first?'},
+ editing:{hook:'Double-click the value. Change it. See what happens.',x:'Strings, numbers, booleans, vectors, matrices and tensors—editable right on the canvas.\n\nSave the edit and the normal JavaScript execution and rendering take over.',reddit:'I removed the inspector round-trip for editing values in my visual JavaScript tool — looking for UX feedback',problem:'Changing one input should not require hunting for a field in a side panel.',demo:'Double-click a datatype block, edit its value, and press Enter or click outside. The block runs and renders again. Escape cancels.',lesson:'Shortening the distance between an input and its result makes experimenting easier.',question:'Would you expect Enter to save a matrix value, or prefer an explicit save button?'},
  overview:{
   hook:'What if the diagram actually ran the code?',
   x:'Wire JavaScript blocks together. Change an input. Watch the result.\n\nI built Milver to make math and code something you can explore, not just read.',

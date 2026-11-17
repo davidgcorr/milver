@@ -1,3 +1,4 @@
+import { makeJsNode } from '../../src/js-recipes';
 import { makeNode, defaultTheme, parseDiagram, serializeDiagram, type Diagram } from '../../src/model';
 export function recordingProject(feature:string):Diagram {
  const signal=makeNode('javascript',{x:65,y:190},'signal');signal.width=260;signal.height=210;signal.data.label='Input signal';signal.data.value='2';signal.data.ports=signal.data.ports.filter(p=>p.type==='output');
@@ -12,5 +13,7 @@ export function recordingProject(feature:string):Diagram {
  for(const node of [signal,logic,output])node.data.visuals={showHeader:false,background:'#ffffff',strokeColor:'#737373',strokeWidth:1.5};
  const edges=[{id:'signal-logic',source:'signal',target:'logic',sourceHandle:'out-0',targetHandle:'in-0',type:'smoothstep',data:{route:'bezier',animation:'pulse',speed:2,color:'#171717',width:2}},{id:'logic-output',source:'logic',target:'output',sourceHandle:'out-0',targetHandle:'in-0',type:'smoothstep',data:{route:'smoothstep',animation:'dash',speed:2,color:'#171717',width:2}}];
  const project={version:1,name:feature==='modules'?'JavaScript modules — live demo':'Milver — '+feature,nodes:[signal,logic,output],edges,modules:[{id:'helpers',alias:'helpers',filename:'helpers.js',source:'// Shared module\nexport function double(\n  value\n) {\n  return value * 2;\n}\n'}],theme:{...defaultTheme,showGrid:true},viewport:{x:25,y:0,zoom:1}} as Diagram;
+ if(feature==='excalidraw')for(const node of project.nodes)node.data.visuals={...node.data.visuals,showHeader:true};
+ if(feature==='editing') {const text=makeJsNode('String',{x:460,y:465},'editable-text');text.width=280;text.height=130;text.data.value='Double-click to edit';project.nodes.push(text);}
  return parseDiagram(serializeDiagram(project));
 }

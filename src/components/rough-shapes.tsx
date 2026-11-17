@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from 'react';
 import { roughGenerator, roughPaths, roughSeed } from '@/rough';
-export const RoughContext=createContext({ enabled: false, roughness: 1 });
+export const RoughContext=createContext<{enabled:boolean;roughness:number;excalidraw?:boolean}>({ enabled: false, roughness: 1 });
 export function RoughPath({ d,id,color,width=1.5 }: { d:string;id:string;color:string;width?:number }) {
   const { roughness }=useContext(RoughContext);
   const paths=useMemo(()=>roughPaths(d,id,color,width,roughness),[d,id,color,width,roughness]);

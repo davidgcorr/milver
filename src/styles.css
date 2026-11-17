@@ -433,3 +433,7 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .shape-editor-actions button{font-size:10px}
 
 .release-version{font:9px ui-monospace,monospace;color:var(--muted-foreground);padding:0 4px;white-space:nowrap}
+
+.inline-value-editor{position:absolute;inset:8px;z-index:5;width:calc(100% - 16px);height:calc(100% - 16px);resize:none;border:1px solid var(--primary);border-radius:4px;background:var(--card);color:var(--foreground);padding:10px;font:14px/1.5 ui-monospace,monospace;user-select:text;outline:none;box-shadow:0 0 0 2px var(--card)}
+.block-body:has(.inline-value-editor){position:relative}
+.shaped-block .block-body:has(.inline-value-editor){position:absolute}

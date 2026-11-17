@@ -19,7 +19,7 @@ test('versions increase for every main commit, remain stable on rerun and identi
 });
 test('social drafts use platform-specific product hooks, stay within X limits, and keep release metadata out',()=>{
  const meta={tag:'v9.8.765',shortCommit:'abc1234',site:'https://milver.davidgc.com/',releaseUrl:'https://example.com/release'};
- for(const feature of ['overview','arrows','shapes','modules','backups']){
+ for(const feature of ['overview','arrows','shapes','modules','backups','excalidraw','editing']){
   const posts=socialPosts(meta,{subject:'chore: internal plumbing',features:['overview',feature],maintenance:true});
   assert.ok(posts.x.replace(/https?:\/\/\S+/g,'x'.repeat(23)).length<=280);
   assert.ok(posts.reddit.startsWith('Title: '));assert.match(posts.reddit,/I am the developer/);
