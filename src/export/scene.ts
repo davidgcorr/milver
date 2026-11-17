@@ -2,7 +2,7 @@ import { blockShapePath, shaped, shapePortPoint } from '../block-shapes';
 import { wireLayers } from '../arrow-masks';
 import {usesBlockFunctions} from '../block-functions';
 import { blockPresentation } from '../block-presentation';
-import { roughPaths } from '../rough';
+import { roughPaths, roughGenerator, roughSeed } from '../rough';
 import { portOffset } from '../ports';
 import { connectionPath } from '../connections';
 import { Position } from '@xyflow/react';
@@ -94,7 +94,9 @@ function renderBlock(node: BlockNode, index: string, palette: ExportPalette, rad
   const ports = data.ports.map(port => {
     const absolute = handlePoint(node, port); const x = absolute.x - node.position.x, y = absolute.y - node.position.y;
     const left = port.side === 'left', right = port.side === 'right', top = port.side === 'top';
-    return `<circle cx="${x}" cy="${y}" r="${boundary ? 3 : 5.5}" fill="${palette.card}" stroke="${port.type === 'input' ? '#0284c7' : palette.primary}"/><circle cx="${x}" cy="${y}" r="2.5" fill="${port.type === 'input' ? palette.card : palette.primary}" stroke="${port.type === 'input' ? '#0284c7' : palette.primary}"/>` + (v.showPortLabels === false || boundary ? '' : text(left ? x + 12 : right ? x - 12 : x, left || right ? y + 2 : top ? y + 17 : y - 11, port.name, 7, `text-anchor="${left ? 'start' : right ? 'end' : 'middle'}" fill="${palette.muted}" clip-path="url(#${clip})"`));
+    const color=port.type==='input'?'#0284c7':palette.primary;
+    const portShape=sketch ? `<g data-rough-port="true">${roughGenerator.toPaths(roughGenerator.ellipse(x,y,boundary?6:12,boundary?6:12,{seed:roughSeed(`${index}-${port.id}`),stroke:color,strokeWidth:1,roughness,fill:port.type==='output'?color:palette.card,fillStyle:'solid'})).map(p=>`<path d="${p.d}" fill="${p.fill}" stroke="${p.stroke}" stroke-width="${p.strokeWidth}"/>`).join('')}</g>` : `<circle cx="${x}" cy="${y}" r="${boundary ? 3 : 5.5}" fill="${palette.card}" stroke="${color}"/><circle cx="${x}" cy="${y}" r="2.5" fill="${port.type === 'input' ? palette.card : palette.primary}" stroke="${color}"/>`;
+    return portShape + (v.showPortLabels === false || boundary ? '' : text(left ? x + 12 : right ? x - 12 : x, left || right ? y + 2 : top ? y + 17 : y - 11, port.name, 7, `text-anchor="${left ? 'start' : right ? 'end' : 'middle'}" fill="${palette.muted}" clip-path="url(#${clip})"`));
   }).join('');
   const interactive = destination === undefined ? '' : ` data-enter="${destination}" role="button" tabindex="0" aria-label="${escapeXml(`Enter ${data.label}`)}" style="cursor:pointer"`;
   const outlinePath = customShape ? shapePath : boundary ? `M ${w/2} 2 A ${w/2-2} ${h/2-2} 0 1 1 ${w/2-.01} 2` : `M2 2H${w-2}V${h-2}H2Z`;

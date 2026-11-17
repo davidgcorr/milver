@@ -139,6 +139,7 @@ it('roundtrips Excalidraw mode and applies it to exports without changing saved 
   const restored=parseDiagram(serializeDiagram(d));expect(restored.theme?.excalidraw).toBe(true);
   const scene=buildScene(restored,collectPages(restored,[],'current'),options);
   expect(scene.rough).toBe(true);expect(scene.body).not.toContain('Sources › Constant');
+  expect(scene.body).toContain('data-rough-port="true"');
   expect(scene.body).toContain('y="136" font-size="10"');
   expect(restored.nodes[0].data.visuals).toEqual({showHeader:true,showLabel:false});
 });

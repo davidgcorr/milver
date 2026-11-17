@@ -2,6 +2,7 @@
 import { act,createElement,useContext } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect,it,vi } from 'vitest';
+import { RoughContext } from './components/rough-shapes';
 import { MyBlocks } from './components/my-blocks';
 import { TooltipProvider } from './components/ui/tooltip';
 import { ProjectContext } from './project/context';
@@ -16,7 +17,7 @@ it('shows saved definitions as draggable block tiles and live local projects as 
   expect(parseDiagram(serializeDiagram(project))).toEqual(project);
   writeProjects(localStorage,[storeProject(project,'local')]);
   const insert=vi.fn(),remove=vi.fn(),open=vi.fn(),loadExample=vi.fn();
-  function View(){const defaults=useContext(ProjectContext);return createElement(TooltipProvider,null,createElement(ProjectContext.Provider,{value:{...defaults,myBlocks:[saved],insertSavedBlock:insert,removeSavedBlock:remove,openProject:open,loadExample}},createElement(MyBlocks,{addExample(){}})));}
+  function View({excalidraw=false}:{excalidraw?:boolean}){const defaults=useContext(ProjectContext);return createElement(RoughContext.Provider,{value:{enabled:excalidraw,roughness:1,excalidraw}},createElement(TooltipProvider,null,createElement(ProjectContext.Provider,{value:{...defaults,myBlocks:[saved],insertSavedBlock:insert,removeSavedBlock:remove,openProject:open,loadExample}},createElement(MyBlocks,{addExample(){}}))));}
   const host=document.createElement('div');document.body.append(host);const root=createRoot(host);
   try{
     await act(async()=>root.render(createElement(View)));
@@ -34,6 +35,15 @@ it('shows saved definitions as draggable block tiles and live local projects as 
     await act(async()=>card.click());expect(open).toHaveBeenCalledWith(project);
     await act(async()=>writeProjects(localStorage,[storeProject({...project,name:'Second graph'},'second')]));
     expect(host.querySelector('[aria-label="Open project Local graph"]')).toBeNull();expect(host.querySelector('[aria-label="Open project Second graph"]')).not.toBeNull();
+    const icons=[...host.querySelectorAll('.palette-glyph')].map(glyph=>glyph.textContent);
+    await act(async()=>root.render(createElement(View,{excalidraw:true})));
+    const glyphs=[...host.querySelectorAll('.palette-glyph')];
+    expect(glyphs.length).toBeGreaterThan(1);
+    for(const glyph of glyphs){expect(glyph.querySelector('.rough-block-outline')).not.toBeNull();expect(glyph.querySelector('.rough-port-outline')).not.toBeNull();}
+    expect(glyphs.map(glyph=>glyph.textContent)).toEqual(icons);
+    await act(async()=>root.render(createElement(View,{excalidraw:false})));
+    expect(host.querySelector('.rough-block-outline,.rough-port-outline')).toBeNull();
+
   }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
 });
 it('rejects malformed project authors and dates in imported JSON',()=>{

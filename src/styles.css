@@ -437,3 +437,9 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .inline-value-editor{position:absolute;inset:8px;z-index:5;width:calc(100% - 16px);height:calc(100% - 16px);resize:none;border:1px solid var(--primary);border-radius:4px;background:var(--card);color:var(--foreground);padding:10px;font:14px/1.5 ui-monospace,monospace;user-select:text;outline:none;box-shadow:0 0 0 2px var(--card)}
 .block-body:has(.inline-value-editor){position:relative}
 .shaped-block .block-body:has(.inline-value-editor){position:absolute}
+
+.sketch-palette-glyph{border-color:transparent!important;border-radius:0}
+.palette-glyph>.rough-block-outline{width:100%;height:100%;max-width:none;max-height:none;color:var(--foreground)}
+.sketch-port.react-flow__handle,.palette-glyph .sketch-port{border:0;background:transparent;box-shadow:none}
+.sketch-port:before{display:none}
+.rough-port-outline,.palette-glyph .rough-port-outline{position:absolute;inset:-2px;width:calc(100% + 4px);height:calc(100% + 4px);max-width:none;max-height:none;overflow:visible;pointer-events:none}

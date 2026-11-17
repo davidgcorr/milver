@@ -104,9 +104,12 @@ it('temporarily hides type information in Excalidraw mode and restores original 
   try{
     await act(async()=>root.render(view(true)));
     expect(host.querySelector('.rough-block-outline')).not.toBeNull();
+    expect(host.querySelectorAll('.react-flow__handle .rough-port-outline')).toHaveLength(node.data.ports.length);
+    expect(host.querySelectorAll('.react-flow__handle')).toHaveLength(node.data.ports.length);
     expect(host.querySelector('.block-type-trail,.block-type-expand')).toBeNull();
     expect(host.querySelector('.block-footer')?.textContent).toBe('String');
     await act(async()=>root.render(view(false)));
     expect(host.querySelector('.block-type-trail')).not.toBeNull();expect(host.querySelector('.block-footer')).toBeNull();
+    expect(host.querySelector('.rough-port-outline')).toBeNull();
   }finally{await act(async()=>root.unmount());host.remove();}
 });

@@ -62,7 +62,12 @@ export async function startRecorder(baseUrl){
     await page.getByRole('button',{name:'Excalidraw mode',exact:true}).click();
     if(await page.locator('.block-type-trail,.block-type-expand').count())throw new Error('Sketch mode still shows type headers');
     if(!(await page.locator('.rough-block-outline').count()))throw new Error('Sketch mode has no rough outlines');
-    interaction+=' Switched the complete live diagram into Excalidraw mode.';await pause(1700);
+    if(await page.locator('.react-flow__handle .rough-port-outline').count()!==await page.locator('.react-flow__handle').count())throw new Error('Sketch ports are missing rough circles');
+    await tool(page,'workspace',{patch:{library:true,libraryTab:'blocks',inspector:false}});
+    const glyphs=page.locator('#library-panel-blocks .palette-glyph');
+    await glyphs.first().waitFor({state:'visible'});
+    if(await glyphs.count()!==await glyphs.locator('.rough-block-outline').count())throw new Error('Library miniatures are missing rough outlines');
+    interaction+=' Switched the live diagram and library miniatures into Excalidraw mode with rough circular ports.';await pause(1700);
    }else if(feature==='editing'){
     await page.locator('.react-flow__node[data-id="editable-text"] .block-body').dblclick();
     await page.getByRole('textbox',{name:'Edit String value',exact:true}).fill('Edited on the canvas');

@@ -1,6 +1,6 @@
 import { git } from './version.mjs';
 export const featureCatalog={
-  excalidraw:{title:'Sketch without the chrome',detail:'Switch the whole diagram to rough outlines with clean blocks and labels below.',paths:['src/components/rough-shapes','src/components/appearance']},
+  excalidraw:{title:'Sketch without the chrome',detail:'Switch the whole diagram to rough outlines with clean blocks and labels below.',paths:['src/components/rough-shapes','src/components/appearance','src/components/palette-glyph']},
   editing:{title:'Edit the value, right on the canvas',detail:'Double-click strings, booleans, numbers, vectors, matrices and tensors; save to run and render again.',paths:['src/components/inline-value-editor','src/components/block-node']},
   overview:{title:'Build ideas as diagrams',detail:'Compose JavaScript blocks, connect data and explore nested canvases.',paths:['src/App.tsx','src/components/block-node','src/components/inspector','src/styles.css']},
   arrows:{title:'Shape the connections',detail:'Edit Bézier waypoints, move orthogonal segments and choose pipe, rough, spiral or dashed arrow styles.',paths:['src/arrow','src/connections','src/components/flow-edge']},
