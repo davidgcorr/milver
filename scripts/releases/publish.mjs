@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile, rm } from 'node:fs/promises';
 import { resolve,join } from 'node:path';
 import { releaseVersion } from './version.mjs';
-const meta=releaseVersion(),latest=process.env.RELEASE_IS_LATEST==='true',repository=process.env.GITHUB_REPOSITORY||'davidgcorr/reactflow-recipes';
+const meta=releaseVersion(),latest=process.env.RELEASE_IS_LATEST==='true',repository=process.env.GITHUB_REPOSITORY||meta.repository;
 const folder=resolve('outputs/releases',meta.tag),manifest=JSON.parse(await readFile(join(folder,'manifest.json'),'utf8'));
 if(meta.sourceDirty || manifest.sourceDirty!==false)throw new Error('Refusing to publish outputs from a dirty working tree. Regenerate from the clean tagged commit.');
 if(manifest.commit!==meta.commit||manifest.version!==meta.version)throw new Error('Output manifest does not match the release commit.');

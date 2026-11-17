@@ -25,7 +25,7 @@ try{
  const posts=socialPosts(meta,{...changes,features}, {general});
  for(const [network,content] of Object.entries(posts))await writeFile(join(output,'posts',network+'.md'),content);
  const heading=general?'Milver — current product media':`Milver ${meta.tag}`;
- const release=`# ${heading}\n\nSource commit: [${meta.shortCommit}](https://github.com/davidgcorr/reactflow-recipes/commit/${meta.commit})\n\n${general?'General media for the capabilities in this version.':changes.subject}\n\n${features.map(key=>'- '+featureCatalog[key].title+': '+featureCatalog[key].detail).join('\n')}\n\n[Open Milver](${meta.site})\n\nSocial copy is in posts/. Images, looping GIFs and MP4 videos are in media/. Editable demonstration projects are in examples/. See manifest.json for source provenance, file sizes and SHA-256 checksums. Media illustrates current capabilities; the commit summary describes what changed.\n`;
+ const release=`# ${heading}\n\nSource commit: [${meta.shortCommit}](${meta.sourceUrl})\n\n${general?'General media for the capabilities in this version.':changes.subject}\n\n${features.map(key=>'- '+featureCatalog[key].title+': '+featureCatalog[key].detail).join('\n')}\n\n[Open Milver](${meta.site})\n\nSocial copy is in posts/. Images, looping GIFs and MP4 videos are in media/. Editable demonstration projects are in examples/. See manifest.json for source provenance, file sizes and SHA-256 checksums. Media illustrates current capabilities; the commit summary describes what changed.\n`;
  await writeFile(join(output,'release.md'),release);
  for(const feature of features){
   console.log(`Rendering ${feature} (${meta.tag})`);

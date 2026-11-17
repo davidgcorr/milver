@@ -9,8 +9,9 @@ export function releaseVersion(ref='HEAD',cwd=process.cwd()) {
   const count=Number(git(['rev-list','--first-parent','--count',sha],cwd));
   const pkg=JSON.parse(readFileSync(resolve(cwd,'package.json'),'utf8'));
   const [major,minor,patch]=pkg.version.split('.').map(Number);
+  const repository=process.env.GITHUB_REPOSITORY||'davidgcorr/milver';
   const version=`${major}.${minor}.${patch+count}`;
-  return {schema:1,sourceDirty:git(['status','--porcelain'],cwd).length>0,version,tag:`v${version}`,commit:sha,shortCommit:sha.slice(0,7),mainCommitNumber:count,date:git(['show','-s','--format=%cI',sha],cwd),site:'https://milver.davidgc.com/',releaseUrl:`https://github.com/davidgcorr/reactflow-recipes/releases/tag/v${version}`};
+  return {schema:1,sourceDirty:git(['status','--porcelain'],cwd).length>0,version,tag:`v${version}`,commit:sha,shortCommit:sha.slice(0,7),mainCommitNumber:count,date:git(['show','-s','--format=%cI',sha],cwd),site:'https://milver.davidgc.com/',repository,sourceUrl:`https://github.com/${repository}/commit/${sha}`,releaseUrl:`https://github.com/${repository}/releases/tag/v${version}`};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
   const metadata=releaseVersion(process.env.RELEASE_SHA||'HEAD');
