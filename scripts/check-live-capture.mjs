@@ -28,6 +28,16 @@ try{
  await resultIs(4);
  const groups=await page.locator('#library-panel-blocks .library-category').evaluateAll(sections=>Object.fromEntries(sections.map(section=>[section.querySelector('.category-toggle span').textContent,[...section.querySelectorAll('.palette-tile>span:last-child')].map(label=>label.textContent)])));
  assert.deepEqual(groups['Data types'],['Number','Boolean','String','Vector','Matrix','Tensor']);assert.deepEqual(groups.Controls,['Slider','Selector','Button']);assert.deepEqual(groups['Data sources'],['Text','CSV']);
+ assert.equal(await page.getByRole('button',{name:'Root canvas',exact:true}).count(),0);
+ await page.getByRole('button',{name:'Pan (H)',exact:true}).click();
+ await page.getByRole('button',{name:'Zoom in',exact:true}).click();await page.waitForTimeout(250);
+ assert.equal(await page.getByRole('button',{name:'Pan (H)',exact:true}).getAttribute('aria-pressed'),'true','Programmatic zoom consumed the pan tool');
+ const before=await page.locator('.react-flow__viewport').getAttribute('style');
+ await page.mouse.move(800,600);await page.mouse.down();await page.mouse.move(870,640,{steps:8});await page.mouse.up();
+ await page.waitForFunction(()=>document.querySelector('[aria-label="Select (V)"]').getAttribute('aria-pressed')==='true');
+ assert.notEqual(await page.locator('.react-flow__viewport').getAttribute('style'),before,'The pan did not move the canvas');
+ await page.evaluate(()=>window.milverMcp.call('milver_workspace',{patch:{viewport:{x:25,y:0,zoom:1}}}));
+
  await page.getByRole('button',{name:'Export diagram',exact:true}).click();
  const tracksStopped=async()=>assert.equal(await page.evaluate(()=>window.captureTracks.every(track=>track.readyState==='ended')),true,'Capture leaked a live sharing track');
  const save=async(name,action,during)=>{
@@ -55,6 +65,26 @@ try{
  if(process.env.MILVER_CAPTURE_QA_DIR){await page.getByRole('button',{name:'Screenshot',exact:true}).click();await page.waitForTimeout(250);await page.screenshot({path:join(output,'export-dialog.png')});}
  await page.setViewportSize({width:375,height:812});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Export dialog overflows on mobile');
- console.log('Verified native PNG, video and GIF capture; live JS updates; cancellation cleanup; and library sections.');
+ await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).first().click();
+ await page.setViewportSize({width:1280,height:800});
+ await page.locator('#library-panel-blocks .palette-tile').filter({hasText:'Parent block'}).click();
+ await page.getByRole('button',{name:'Root canvas',exact:true}).waitFor();
+ const controls=page.getByRole('group',{name:'Simulation controls',exact:true});await controls.waitFor();
+ assert.equal(await controls.locator('..').getAttribute('aria-label'),'Canvas tools');
+ for(const [width,height] of [[1280,800],[768,900],[375,812]]){
+  await page.setViewportSize({width,height});await page.waitForTimeout(200);
+  const box=await controls.boundingBox();assert.ok(box&&box.x>=0&&box.x+box.width<=width+1&&box.y>height/2&&box.y+box.height<=height,'Simulation controls must stay visible in the lower toolbar');
+  const zoom=await page.locator('.zoom-island').boundingBox();
+  assert.ok(box.y+box.height<=zoom.y||box.x+box.width<=zoom.x||box.x>=zoom.x+zoom.width,'Simulation controls overlap zoom controls');
+  if(process.env.MILVER_CAPTURE_QA_DIR){console.log('toolbar',width,box,await page.evaluate(()=>({innerHeight,scrollHeight:document.documentElement.scrollHeight,mains:document.querySelectorAll('main.milver-workspace').length})));await page.screenshot({path:join(output,`toolbar-${width}.png`)});}
+ }
+ await page.setViewportSize({width:1280,height:800});
+ await page.locator('.parent-block .enter-block').click();
+ await page.getByRole('button',{name:'Root canvas',exact:true}).click();
+ await page.keyboard.press('Delete');
+ await page.waitForFunction(()=>!document.querySelector('[aria-label="Root canvas"]'));
+
+ assert.deepEqual(errors,[]);
+ console.log('Verified native PNG, video and GIF capture; live JS updates; cancellation cleanup; library sections; one-shot pan; conditional hierarchy; and responsive bottom simulation controls.');
  console.log(output);
 }finally{await browser?.close();await server.close();if(!process.env.MILVER_CAPTURE_QA_DIR)await rm(output,{recursive:true,force:true});}

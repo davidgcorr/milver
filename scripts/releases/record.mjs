@@ -126,6 +126,21 @@ export async function startRecorder(baseUrl){
     if(!(await json.inputValue()).includes('export function double'))throw new Error('JSON backup is missing the shared module source');
     interaction+=' Opened the complete project JSON and verified the embedded ES module source.';await pause(2000);
    }else{
+    if(await page.getByRole('button',{name:'Root canvas',exact:true}).count())throw new Error('Flat projects should hide hierarchy controls');
+    await page.getByRole('button',{name:'Pan (H)',exact:true}).click();
+    await page.mouse.move(800,550);await page.mouse.down();await page.mouse.move(850,580,{steps:12});await page.mouse.up();
+    await page.waitForFunction(()=>document.querySelector('[aria-label="Select (V)"]').getAttribute('aria-pressed')==='true');
+    await tool(page,'workspace',{patch:{library:true,libraryTab:'blocks',inspector:false}});
+    await page.locator('#library-panel-blocks .palette-tile').filter({hasText:'Parent block'}).click();
+    await tool(page,'workspace',{patch:{library:false,inspector:false}});
+    await page.getByRole('button',{name:'Root canvas',exact:true}).waitFor();
+    const parentBox=await page.locator('.parent-block').boundingBox();
+    if(!parentBox)throw new Error('New parent block is missing');
+    await page.mouse.move(parentBox.x+20,parentBox.y+12);await page.mouse.down();await page.mouse.move(parentBox.x+20,parentBox.y+172,{steps:12});await page.mouse.up();
+    if(await page.getByRole('group',{name:'Simulation controls',exact:true}).locator('..').getAttribute('aria-label')!=='Canvas tools')throw new Error('Simulation controls must share the lower toolbar');
+    await page.getByRole('button',{name:'Pause project',exact:true}).click();await pause(600);
+    await page.getByRole('button',{name:'Enable live project',exact:true}).click();
+    interaction+=' Panned once and returned to Select, then added a parent canvas and used the simulation controls in the bottom toolbar.';
     await pause(1500);
    }
    await page.screenshot({path:join(media,`${feature}-screen.png`),animations:'allow'});

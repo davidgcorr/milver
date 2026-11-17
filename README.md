@@ -376,3 +376,7 @@ Double-click a String, Boolean, Number, Vector, Matrix, or Tensor block to edit 
 Run `npm run test:capture` after `npx playwright install chromium` to verify real tab-based PNG/video/GIF export, live JavaScript updates, cancellation cleanup and library grouping. FFmpeg/ffprobe is required for media validation. `MILVER_CAPTURE_QA_DIR=/tmp/milver-capture npm run test:capture` keeps screenshots and recordings for visual review.
 
 Programmatic `milver_export` PNG/GIF responses remain structural diagram renders. Live tab screenshots, videos and GIFs use the Export dialog because the browser requires a user gesture and sharing permission.
+
+### Canvas navigation
+
+Simulation controls share the lower canvas toolbar with Select, Pan, Undo and Redo. The hierarchy/Home control appears when the project contains a parent block and remains available inside nested canvases. Pan is a one-gesture tool: completing a drag returns to Select; clicking Zoom or Fit does not consume Pan mode.

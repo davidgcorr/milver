@@ -108,3 +108,18 @@ it('separates datatypes, interactive controls and imported data into simple libr
   expect(groups['Data sources']).toEqual(['Text','CSV']);
   expect(groups).not.toHaveProperty('Sources');
 }));
+
+it('hides hierarchy for flat projects and places simulation controls in the bottom toolbar',async()=>workspace(async host=>{
+  expect(host.querySelector('[aria-label="Root canvas"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Simulation controls"]')).toBeNull();
+  await act(async()=>[...host.querySelectorAll<HTMLButtonElement>('#library-panel-blocks .palette-tile')].find(button=>button.textContent==='Parent block')!.click());
+  expect(host.querySelector('[aria-label="Root canvas"]')).not.toBeNull();
+  const tools=host.querySelector('[aria-label="Canvas tools"]')!;
+  expect(tools.querySelector('[aria-label="Simulation controls"]')).not.toBeNull();
+  expect(host.querySelector('.execution-island')).toBeNull();
+  await act(async()=>tools.querySelector<HTMLButtonElement>('[aria-label="Pause project"]')!.click());
+  expect(tools.querySelector('[aria-label="Enable live project"]')).not.toBeNull();
+  await act(async()=>tools.querySelector<HTMLButtonElement>('[aria-label="Undo"]')!.click());
+  expect(host.querySelector('[aria-label="Root canvas"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Simulation controls"]')).toBeNull();
+}));

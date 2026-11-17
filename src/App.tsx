@@ -112,6 +112,7 @@ function Editor() {
   const documentRef = useRef(document); documentRef.current = document;
   const pathRef = useRef(path); pathRef.current = path;
   const fileRef = useRef<HTMLInputElement>(null);
+  const panStart = useRef<{x:number;y:number}|null>(null);
   const flow = useReactFlow<BlockNode>();
   const canvas = canvasAt(document, path);
   const nodes = canvas.nodes; const edges = canvas.edges;
@@ -470,6 +471,8 @@ function Editor() {
       onNodeDragStart={() => { snapshot(); setUI(u => ({ ...u, inspector: false })); }} onSelectionDragStart={() => { snapshot(); setUI(u => ({ ...u, inspector: false })); }}
       onNodeClick={() => { setActivePort(null); setUI(u => ({ ...u, inspector: true })); }} onNodeDoubleClick={(_, node) => enter(node.id)}
       onPaneClick={() => setActivePort(null)}
+      onMoveStart={(event,viewport) => { panStart.current = mode === 'pan' && event && event.type !== 'wheel' ? {x:viewport.x,y:viewport.y} : null; }}
+      onMoveEnd={(_,viewport) => { const start=panStart.current;panStart.current=null;if(start&&(start.x!==viewport.x||start.y!==viewport.y))setMode('select'); }}
       viewport={canvas.viewport} onViewportChange={viewport => {
         const current = canvasAt(documentRef.current, pathRef.current).viewport;
         if (current.x !== viewport.x || current.y !== viewport.y || current.zoom !== viewport.zoom) editCanvas(c => ({ ...c, viewport }), false);
@@ -486,12 +489,13 @@ function Editor() {
 
     <Card className="floating-island identity-island"><IconButton label={ui.library ? 'Collapse block library' : 'Open block library'} aria-expanded={ui.library} aria-controls="block-library" onClick={openLibrary}><Menu/></IconButton><span className="wordmark">milver<span>.</span></span><Separator orientation="vertical"/><span className="project-title-field"><span className="project-title-measure" aria-hidden="true">{document.name || 'Untitled project'}</span><Input id="diagram-name" className="project-title-input" aria-label="Project title" title="Project title" placeholder="Untitled project" value={document.name} onFocus={snapshot} onChange={e => replace({ ...documentRef.current, name: e.target.value })}/></span></Card>
 
-    <Card className="floating-island tools-island" role="toolbar" aria-label="Canvas tools">
+    <Card className={`floating-island tools-island ${projectRuntime.enabled?'has-execution':''}`} role="toolbar" aria-label="Canvas tools">
       <IconButton label="Select (V)" aria-pressed={mode === 'select'} variant={mode === 'select' ? 'secondary' : 'ghost'} onClick={() => setMode('select')}><MousePointer2/></IconButton>
       <IconButton label="Pan (H)" aria-pressed={mode === 'pan'} variant={mode === 'pan' ? 'secondary' : 'ghost'} onClick={() => setMode('pan')}><Hand/></IconButton><Separator orientation="vertical"/>
       <IconButton label="Undo" disabled={!history.past.length} onClick={undo}><Undo2/></IconButton><IconButton label="Redo" disabled={!history.future.length} onClick={redo}><Redo2/></IconButton><Separator orientation="vertical"/>
       <IconButton label="Clear canvas" disabled={!nodes.length && !edges.length} onClick={() => { editCanvas(c => ({ ...c, nodes: [], edges: [] })); setActivePort(null); notify('Canvas cleared · Undo to restore'); }}><Eraser/></IconButton>
       <IconButton label="Snap to grid and connected ports" aria-pressed={ui.snap} variant={ui.snap ? 'secondary' : 'ghost'} onClick={() => setUI(u => ({ ...u, snap: !u.snap }))}><Grid3X3/></IconButton>
+      {projectRuntime.enabled && <><Separator className="execution-divider" orientation="vertical"/><div className="execution-controls" role="group" aria-label="Simulation controls"><IconButton label={projectRuntime.live ? 'Pause project' : 'Enable live project'} aria-pressed={projectRuntime.live} onClick={() => projectRuntime.setLive(!projectRuntime.live)}>{projectRuntime.live ? <Pause/> : <Play/>}</IconButton><IconButton label="Run project once" disabled={projectRuntime.busy} onClick={projectRuntime.step}><Play/></IconButton><IconButton label="Step project" disabled={projectRuntime.busy} onClick={projectRuntime.step}><StepForward/></IconButton><IconButton label="Stop project" onClick={projectRuntime.stop}><Square/></IconButton><IconButton label="Reset project instances" onClick={projectRuntime.reset}><RotateCcw/></IconButton><span role="status">{projectRuntime.busy ? 'Running…' : projectRuntime.error ? 'Error' : `${projectRuntime.live ? 'Live' : 'Paused'} · step ${projectRuntime.result?.tick ?? 0}`}</span></div></>}
     </Card>
 
     <Card className="floating-island actions-island" role="toolbar" aria-label="Diagram actions">
@@ -517,11 +521,11 @@ function Editor() {
 
     <ResizablePanel>{appearanceOpen ? <Appearance theme={theme} update={updateTheme} close={() => setAppearanceOpen(false)}/> : <Collapsible open={ui.inspector}><CollapsibleContent><Inspector maskError={selected ? maskErrors[selected.id] : undefined} node={selected} edge={selectedEdge} updateEdge={patch => selectedEdge && updateEdge(selectedEdge.id, patch)} nodes={nodes} activePort={activePort} setActivePort={setActivePort} update={updateBlock} resize={resize} updatePort={updatePort} removePort={removePort} addPort={addPort} enter={enter} duplicate={duplicate} remove={deleteSelection}/></CollapsibleContent></Collapsible>}</ResizablePanel>
 
-    <Card className="floating-island breadcrumbs" aria-label="Canvas hierarchy"><IconButton label="Root canvas" onClick={() => goTo([])}><Home/></IconButton>{crumbs.map((crumb, index) => <span key={crumb.path.join('/')} className="breadcrumb-item"><ChevronRight/><Button variant="ghost" size="sm" aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={() => goTo(crumb.path)}>{crumb.label}</Button></span>)}</Card>
+    {(nested || document.nodes.some(node=>node.data.canvas)) && <Card className="floating-island breadcrumbs" aria-label="Canvas hierarchy"><IconButton label="Root canvas" onClick={() => goTo([])}><Home/></IconButton>{crumbs.map((crumb, index) => <span key={crumb.path.join('/')} className="breadcrumb-item"><ChevronRight/><Button variant="ghost" size="sm" aria-current={index === crumbs.length - 1 ? 'page' : undefined} onClick={() => goTo(crumb.path)}>{crumb.label}</Button></span>)}</Card>}
 
     <Card className="floating-island bottom-left-island"><IconButton label="Help and shortcuts" onClick={() => setHelpOpen(true)}><CircleHelp/></IconButton><Separator orientation="vertical"/><span className="diagram-stats">{nodes.length} blocks<span>·</span>{edges.length} connections</span><span className="release-version" title="Deployed release" aria-label="App version">v{__MILVER_VERSION__}</span><span className="save-label">{saved ? 'Saved locally' : 'Saving…'}</span></Card>
     <Card className="floating-island zoom-island"><IconButton label="Zoom out" onClick={() => void flow.zoomOut({ duration: 150 })}><Minus/></IconButton><span className="zoom-value">{Math.round(canvas.viewport.zoom * 100)}%</span><IconButton label="Zoom in" onClick={() => void flow.zoomIn({ duration: 150 })}><Plus/></IconButton><Separator orientation="vertical"/><IconButton label="Fit to view (1)" onClick={() => void flow.fitView({ padding: 0.35, maxZoom: 1, duration: 200 })}><Expand/></IconButton><IconButton label="Toggle minimap" aria-pressed={ui.minimap} onClick={() => setUI(u => ({ ...u, minimap: !u.minimap }))}><Map/></IconButton></Card>
-    {projectRuntime.enabled && <Card className="floating-island execution-island" role="toolbar" aria-label="Project execution"><IconButton label={projectRuntime.live ? 'Pause project' : 'Enable live project'} aria-pressed={projectRuntime.live} onClick={() => projectRuntime.setLive(!projectRuntime.live)}>{projectRuntime.live ? <Pause/> : <Play/>}</IconButton><IconButton label="Run project once" disabled={projectRuntime.busy} onClick={projectRuntime.step}><Play/></IconButton><IconButton label="Step project" disabled={projectRuntime.busy} onClick={projectRuntime.step}><StepForward/></IconButton><IconButton label="Stop project" onClick={projectRuntime.stop}><Square/></IconButton><IconButton label="Reset project instances" onClick={projectRuntime.reset}><RotateCcw/></IconButton><span role="status">{projectRuntime.busy ? 'Running…' : projectRuntime.error ? 'Error' : `${projectRuntime.live ? 'Live' : 'Paused'} · step ${projectRuntime.result?.tick ?? 0}`}</span></Card>}
+
     {projectRuntime.error && <div className="project-runtime-error" role="alert">{projectRuntime.error}</div>}
     {mcpOpen && <McpDialog close={()=>setMcpOpen(false)}/>}
     {projectsOpen && <ProjectsDialog diagram={document} close={() => setProjectsOpen(false)} openProject={next => { snapshot(); goTo([]); replace(next); notify('Project opened'); }}/>}
