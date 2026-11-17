@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
-import { mkdir,rm,mkdtemp } from 'node:fs/promises';
+import { mkdir,readFile,rm,mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
@@ -17,7 +17,7 @@ async function tool(page,name,args){
 }
 async function pointOnPath(locator){return locator.evaluate(path=>{const p=path.getPointAtLength(path.getTotalLength()/2),m=path.getScreenCTM();return {x:m.a*p.x+m.c*p.y+m.e,y:m.b*p.x+m.d*p.y+m.f};});}
 export async function startRecorder(baseUrl){
- const browser=await chromium.launch({headless:true});
+ const browser=await chromium.launch({channel:'chromium',headless:true,args:['--auto-select-tab-capture-source-by-title=Milver release demo','--enable-usermedia-screen-capturing','--allow-http-screen-capture']});
  return {close:()=>browser.close(),async verifyGallery(output){
   const context=await browser.newContext({viewport:{width:1600,height:900},colorScheme:'light'}),page=await context.newPage();
   try{
@@ -58,7 +58,21 @@ export async function startRecorder(baseUrl){
    await input.press('ArrowRight');await resultIs(result,8);await input.press('ArrowRight');await resultIs(result,10);checks.push({input:5,output:10});await pause(1000);
    await page.screenshot({path:join(media,`${feature}-screen.png`),animations:'allow'});
    let interaction='Changed the real slider and observed helpers.double() updating the connected output.';
-   if(feature==='excalidraw'){
+   if(feature==='capture'){
+    await page.evaluate(()=>document.title='Milver release demo');
+    await page.getByRole('button',{name:'Export diagram',exact:true}).click();
+    await pause(1000);
+    const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Capture screenshot',exact:true}).click();
+    const downloaded=await pending,bytes=await readFile(await downloaded.path());
+    if(bytes.subarray(1,4).toString()!=='PNG')throw new Error('Live screenshot export did not produce PNG');
+    await page.locator('.export-preview img').waitFor({state:'visible'});
+    interaction+=' Exported a real tab screenshot through the app and inspected its live-content preview.';await pause(1700);
+   }else if(feature==='library'){
+    await tool(page,'workspace',{patch:{library:true,libraryTab:'blocks',inspector:false}});
+    const headings=await page.locator('#library-panel-blocks .category-toggle span').allTextContents();
+    if(JSON.stringify(headings.slice(0,3))!==JSON.stringify(['Data types','Controls','Data sources']))throw new Error('Library groups do not match the simplified organization');
+    interaction+=' Opened the reorganized datatype, control and data-source sections.';await pause(2200);
+   }else if(feature==='excalidraw'){
     await page.getByRole('button',{name:'Excalidraw mode',exact:true}).click();
     if(await page.locator('.block-type-trail,.block-type-expand').count())throw new Error('Sketch mode still shows type headers');
     if(!(await page.locator('.rough-block-outline').count()))throw new Error('Sketch mode has no rough outlines');

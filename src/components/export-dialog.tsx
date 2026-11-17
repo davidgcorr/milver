@@ -1,75 +1,82 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Braces, Check, Code2, Copy, Download, FileImage, Film, Image, LoaderCircle, MousePointer2, Network } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Braces, Check, Code2, Copy, Download, FileImage, Film, Image, LoaderCircle, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Field } from './editor-ui';
-import { buildScene, collectPages, defaultExportOptions, rasterSize, sceneSvg, type ExportFormat } from '@/export/scene';
+import { buildScene, collectPages, defaultExportOptions, exportFilename, sceneSvg, type ExportFormat } from '@/export/scene';
 import { createExport, downloadBlob } from '@/export/download';
+import { captureTab, type CaptureFormat } from '@/export/capture';
 import type { Diagram } from '@/model';
 
-const formats = [
-  { id: 'png', name: 'PNG', icon: Image, description: 'High-resolution image' },
-  { id: 'svg', name: 'SVG', icon: FileImage, description: 'Scalable vector image' },
-  { id: 'gif', name: 'GIF', icon: Film, description: 'Looping connection animation' },
-  { id: 'html', name: 'HTML', icon: Code2, description: 'Live JavaScript / JSX block viewer' },
-  { id: 'json', name: 'JSON', icon: Braces, description: 'Complete project JSON backup' },
+type Format=ExportFormat|'video';
+const formats=[
+  {id:'png',name:'Screenshot',icon:Image,description:'PNG of the running canvas, including live JavaScript blocks.'},
+  {id:'video',name:'Video',icon:Video,description:'Record the running canvas and your interactions. MP4 or WebM, depending on your browser.'},
+  {id:'gif',name:'GIF',icon:Film,description:'A looping recording of the actual running canvas.'},
+  {id:'svg',name:'SVG diagram',icon:FileImage,description:'Editable vector structure. Live block content is represented by labels.'},
+  {id:'html',name:'HTML',icon:Code2,description:'Interactive page with JavaScript renderers and nested canvases.'},
+  {id:'json',name:'JSON',icon:Braces,description:'Complete editable project backup, including code and libraries.'},
 ] as const;
-export function ExportDialog({ open, onOpenChange, diagram, path, notify }: { open: boolean; onOpenChange: (open: boolean) => void; diagram: Diagram; path: string[]; notify: (message: string) => void }) {
-  const [format, setFormat] = useState<ExportFormat>('png');
-  const [options, setOptions] = useState(defaultExportOptions);
-  const [busy, setBusy] = useState(false); const [progress, setProgress] = useState(0);
-  const [error, setError] = useState(''); const [preview, setPreview] = useState('');
-  const [lastDownload, setLastDownload] = useState('');
-  const prepared = useMemo(() => {
-    if (!open || format === 'json') return { scene: null, pages: [], error: '' };
-    try {
-      const pages = collectPages(diagram, path, options.scope);
-      const scene = buildScene(diagram, pages, options);
-      return { scene, pages, error: '' };
-    } catch (e) { return { scene: null, pages: [], error: e instanceof Error ? e.message : 'Could not prepare the export.' }; }
-  }, [open, diagram, path, options, format]);
-  useEffect(() => { setLastDownload(''); }, [options, format]);
-  const supportsTransparency = format === 'png' || format === 'svg';
-  useEffect(() => {
-    if (!prepared.scene) { setPreview(''); return; }
-    let active=true,url:string|undefined;
-    setPreview('');
-    const publish=(blob:Blob)=>{if(!active)return;url=URL.createObjectURL(blob);setPreview(url);};
-    if(format==='html')void createExport(diagram,path,'html',options).then(result=>publish(result.blob)).catch(error=>{if(active)setError(String(error));});
-    else publish(new Blob([sceneSvg(prepared.scene, { ...options, transparent: supportsTransparency && options.transparent })], { type: 'image/svg+xml;charset=utf-8' }));
-    return () => { active=false;if(url)URL.revokeObjectURL(url); };
-  }, [prepared.scene, options, supportsTransparency, format]);
-  const pixels = prepared.scene ? rasterSize(prepared.scene, options.width, format === 'gif' ? 'gif' : 'png') : null;
-  const download = async () => {
-    setBusy(true); setError(''); setProgress(0); setLastDownload('');
-    try {
-      const result = await createExport(diagram, path, format, options, setProgress);
-      downloadBlob(result.blob, result.filename); setLastDownload(result.filename); notify(`${format.toUpperCase()} exported`);
-    } catch (e) { setError(e instanceof Error ? e.message : 'Export failed. Try SVG or a smaller image width.'); }
-    finally { setBusy(false); }
+export function ExportDialog({open,onOpenChange,diagram,path,notify}:{open:boolean;onOpenChange:(open:boolean)=>void;diagram:Diagram;path:string[];notify:(message:string)=>void}){
+  const [format,setFormat]=useState<Format>('png'),[options,setOptions]=useState(defaultExportOptions),[seconds,setSeconds]=useState(5);
+  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[preview,setPreview]=useState('');
+  const [download,setDownload]=useState<{blob:Blob;filename:string;type:Format}|null>(null);
+  const abort=useRef<AbortController|null>(null),mounted=useRef(true);
+  const live=format==='png'||format==='gif'||format==='video';
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;abort.current?.abort();};},[]);
+  const prepared=useMemo(()=>{
+    if(!open||live||format==='json')return {scene:null,error:''};
+    try{return {scene:buildScene(diagram,collectPages(diagram,path,options.scope),options),error:''};}
+    catch(error){return {scene:null,error:error instanceof Error?error.message:'Could not prepare export.'};}
+  },[open,live,format,diagram,path,options]);
+  const htmlDiagram=format==='html'?diagram:null,htmlPath=format==='html'?path:null;
+  useEffect(()=>{
+    let active=true,url:string|undefined;setPreview('');
+    const publish=(blob:Blob)=>{if(active){url=URL.createObjectURL(blob);setPreview(url);}};
+    if(download&&download.type===format)publish(download.blob);
+    else if(format==='html'&&open)void createExport(diagram,path,'html',options).then(result=>publish(result.blob)).catch(error=>{if(active)setError(String(error));});
+    else if(prepared.scene)publish(new Blob([sceneSvg(prepared.scene,options)],{type:'image/svg+xml'}));
+    return()=>{active=false;if(url)URL.revokeObjectURL(url);};
+  },[download,format,prepared.scene,open,htmlDiagram,htmlPath,options]);
+  const save=async()=>{
+    setBusy(true);setError('');setDownload(null);
+    try{
+      let result:{blob:Blob;filename:string};
+      if(format==='png'||format==='gif'||format==='video'){
+        const controller=new AbortController();abort.current=controller;
+        const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();controller.abort();}};
+        window.addEventListener('keydown',escape,true);
+        try{
+          const captured=await captureTab(format as CaptureFormat,{width:options.width,seconds,signal:controller.signal,ready:()=>{onOpenChange(false);document.documentElement.classList.add('live-capture');}});
+          result={blob:captured.blob,filename:exportFilename(diagram.name,'png').replace(/\.png$/,'.'+captured.extension)};
+        }finally{window.removeEventListener('keydown',escape,true);document.documentElement.classList.remove('live-capture');abort.current=null;}
+      }else result=await createExport(diagram,path,format,options);
+      downloadBlob(result.blob,result.filename);setDownload({...result,type:format});notify(`Downloaded ${result.filename}`);
+    }catch(error){if(mounted.current)setError(error instanceof DOMException&&['NotAllowedError','AbortError'].includes(error.name)?'Capture cancelled. Choose this tab when you try again.':error instanceof Error?error.message:'Export failed.');}
+    finally{if(mounted.current){setBusy(false);onOpenChange(true);}}
   };
-  const embedCode = lastDownload ? format === 'html' ? `<iframe src="${lastDownload}" title="Diagram" width="100%" height="600" style="border:0" loading="lazy"></iframe>` : `<img src="${lastDownload}" alt="Diagram" style="max-width:100%;height:auto" loading="lazy">` : '';
-  return <Dialog open={open} onOpenChange={value => { if (!busy) onOpenChange(value); }}><DialogContent className="export-dialog" onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onInteractOutside={event => { if (busy) event.preventDefault(); }}>
-    <DialogHeader><DialogTitle className="dialog-title"><Download/>Export diagram</DialogTitle><DialogDescription>Publish your diagram as an image or an interactive page. Editor controls are excluded.</DialogDescription></DialogHeader>
-    <div className="export-formats" role="group" aria-label="Export format">{formats.map(f => <Button key={f.id} variant={format === f.id ? 'secondary' : 'ghost'} aria-pressed={format === f.id} disabled={busy} onClick={() => { setFormat(f.id); setOptions(o => ({ ...o, ...(f.id === 'gif' ? { width: Math.min(o.width, 1600) } : {}), ...(f.id === 'html' ? { scope: 'system' } : {}) })); setError(''); setLastDownload(''); }}><f.icon/>{f.name}</Button>)}</div>
-    <div className="export-layout"><div className="export-preview"><div className={supportsTransparency && options.transparent ? 'export-image checkerboard' : 'export-image'}>{preview && (format==='html'?<iframe src={preview} title="Live HTML export preview" sandbox="allow-scripts" style={{width:'100%',height:'100%',minHeight:260,border:0}}/>:<img src={preview} alt="Diagram export preview"/>)}{!preview && <span>{format === 'json' ? 'Complete project backup · all canvases, libraries, code, drafts, saved blocks and settings' : 'Preview unavailable'}</span>}</div><div className="export-preview-caption"><span>{formats.find(f => f.id === format)?.description}</span>{format === 'png' || format === 'gif' ? <Badge variant="outline">{pixels?.width ?? 0} × {pixels?.height ?? 0}</Badge> : <Badge variant="outline">{format === 'svg' ? 'Vector' : format === 'html' ? 'Offline-ready' : 'Version 1'}</Badge>}</div></div>
-      <div className="export-options">
-        <Field label="Content"><Select value={options.scope} onValueChange={scope => { setOptions(o => ({ ...o, scope: scope as 'current' | 'system' })); setLastDownload(''); }} disabled={busy || format === 'json'}><SelectTrigger aria-label="Export content" className="w-full"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="current">Current canvas</SelectItem><SelectItem value="system">Entire system</SelectItem></SelectContent></Select></Field>
-        <p className="export-note">{format === 'json' ? 'JSON includes the entire project: nested canvases, JavaScript modules and dependencies, code and render functions, unapplied drafts, saved blocks, data, state, connections and theme. Drafts are restored without running them. URL libraries include their source and imported JavaScript dependencies, with original URLs retained.' : options.scope === 'system' ? format === 'html' ? 'Includes all nested canvases. Double-click parent blocks to navigate.' : `${prepared.pages.length} canvases, arranged as labeled sheets in one image.` : 'Includes every block in this canvas, even those outside your current view.'}</p>
-        {(format === 'png' || format === 'gif') && <Field label="Image width"><Select value={String(options.width)} onValueChange={width => { setOptions(o => ({ ...o, width: Number(width) })); setLastDownload(''); }} disabled={busy}><SelectTrigger aria-label="Image width" className="w-full"><SelectValue/></SelectTrigger><SelectContent>{[800, 1200, 1600, ...(format === 'png' ? [2400, 3200, 4096] : [])].map(width => <SelectItem value={String(width)} key={width}>{width} px</SelectItem>)}</SelectContent></Select></Field>}
-        {format !== 'json' && <><Separator/><div className="export-toggle"><Label htmlFor="export-title">Diagram title</Label><Switch id="export-title" size="sm" checked={options.title} disabled={busy || format === 'html'} onCheckedChange={title => setOptions(o => ({ ...o, title }))}/></div><div className="export-toggle"><Label htmlFor="export-grid">Dot grid</Label><Switch id="export-grid" size="sm" checked={options.grid} disabled={busy} onCheckedChange={grid => setOptions(o => ({ ...o, grid }))}/></div>{supportsTransparency && <div className="export-toggle"><Label htmlFor="export-transparent">Transparent background</Label><Switch id="export-transparent" size="sm" checked={options.transparent} disabled={busy} onCheckedChange={transparent => setOptions(o => ({ ...o, transparent }))}/></div>}</>}
-        {format === 'gif' && <><div className="export-toggle"><Label htmlFor="export-animate">Animate connections</Label><Switch id="export-animate" size="sm" checked={options.animate} disabled={busy} onCheckedChange={animate => setOptions(o => ({ ...o, animate }))}/></div><p className="export-note">A seamless 1.92-second loop. Moving dots illustrate connections; they do not represent simulation results. GIF uses a solid background and up to 256 colors.</p></>}
-        {format === 'html' && <p className="export-note"><MousePointer2/>Pan and zoom. <Network/>Use Entire system to explore parent blocks. No dependencies, server, or internet connection required.</p>}
-      </div>
-    </div>
-    {lastDownload && format !== 'json' && <div className="export-embed"><div><Check/><span>Downloaded {lastDownload}</span></div><div className="export-embed-code"><Input aria-label="Embed code" readOnly value={embedCode}/><Button variant="outline" size="sm" onClick={() => void navigator.clipboard.writeText(embedCode).then(() => notify('Embed code copied'), () => notify('Select and copy the embed code.'))}><Copy/>Copy embed</Button></div><p className="export-note">Upload the downloaded file to your site, then use this embed code. Change the src path to its published URL.</p></div>}
-    {(error || prepared.error) && <p className="json-error" role="alert">{error || prepared.error}</p>}
-    <DialogFooter><Button variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>Close</Button><Button disabled={busy || (format !== 'json' && !prepared.scene)} onClick={() => void download()}>{busy ? <LoaderCircle className="animate-spin"/> : <Download/>}{busy ? format === 'gif' ? `Encoding ${progress}%` : 'Preparing…' : `Download ${format.toUpperCase()}`}</Button></DialogFooter>
+  const embed=download?format==='html'?`<iframe src="${download.filename}" title="Diagram" width="100%" height="600" style="border:0" loading="lazy"></iframe>`:format==='video'?`<video src="${download.filename}" controls playsinline style="max-width:100%"></video>`:`<img src="${download.filename}" alt="Diagram" style="max-width:100%;height:auto">`:'';
+  return <Dialog open={open} onOpenChange={value=>{if(!busy)onOpenChange(value);}}><DialogContent className="export-dialog" onEscapeKeyDown={event=>{if(busy)event.preventDefault();}} onInteractOutside={event=>{if(busy)event.preventDefault();}}>
+    <DialogHeader><DialogTitle className="dialog-title"><Download/>Export</DialogTitle><DialogDescription>Capture the running canvas, share an interactive page, or save the project.</DialogDescription></DialogHeader>
+    <div className="export-formats" role="group" aria-label="Export format">{formats.map(item=><Button key={item.id} variant={format===item.id?'secondary':'ghost'} aria-pressed={format===item.id} disabled={busy} onClick={()=>{setFormat(item.id);if(item.id==='html')setOptions(current=>({...current,scope:'system'}));setDownload(null);setError('');}}><item.icon/>{item.name}</Button>)}</div>
+    <div className="export-layout"><div className="export-preview"><div className="export-image">{preview?(format==='html'?<iframe src={preview} title="Live HTML export preview" sandbox="allow-scripts" style={{width:'100%',height:'100%',minHeight:260,border:0}}/>:format==='video'?<video src={preview} controls playsInline aria-label="Captured video preview" style={{width:'100%'}}/>:<img src={preview} alt="Export preview"/>):<div className="capture-intro"><div className="capture-intro-icon">{format==='video'?<Video/>:format==='gif'?<Film/>:format==='json'?<Braces/>:<Image/>}</div><strong>{live?'Capture what is running':format==='json'?'Keep the whole project':'Diagram preview'}</strong><p>{formats.find(item=>item.id===format)?.description}</p></div>}</div><div className="export-preview-caption">{formats.find(item=>item.id===format)?.description}</div></div>
+    <div className="export-options">
+      {live?<>
+        <Field label="Capture"><p className="export-note">Choose <strong>this tab</strong> in the browser’s sharing dialog. The export dialog, panels, and toolbars hide automatically. Only the current view is captured; zoom and pan before starting.</p></Field>
+        <Field label="Maximum width"><Select value={String(format==='gif'?Math.min(800,options.width):options.width)} onValueChange={width=>setOptions(current=>({...current,width:Number(width)}))} disabled={busy}><SelectTrigger aria-label="Capture width"><SelectValue/></SelectTrigger><SelectContent>{(format==='gif'?[400,600,800]:[400,600,800,1200,1600,2400]).map(width=><SelectItem key={width} value={String(width)}>{width} px</SelectItem>)}</SelectContent></Select></Field>
+        {format!=='png'&&<><Field label="Duration"><Select value={String(Math.min(seconds,format==='gif'?10:30))} onValueChange={seconds=>setSeconds(Number(seconds))} disabled={busy}><SelectTrigger aria-label="Recording duration"><SelectValue/></SelectTrigger><SelectContent>{(format==='gif'?[3,5,10]:[3,5,10,20,30]).map(seconds=><SelectItem key={seconds} value={String(seconds)}>{seconds} seconds</SelectItem>)}</SelectContent></Select></Field><p className="export-note">Interact with blocks while recording. Recording ends automatically. Escape cancels; stop sharing to finish early.{format==='gif'?' GIFs use up to 800 px width and 256 colors.':''}</p></>}
+      </>:<>
+        {format!=='json'&&<Field label="Content"><Select value={options.scope} onValueChange={scope=>{setOptions(current=>({...current,scope:scope as 'current'|'system'}));setDownload(null);}} disabled={busy}><SelectTrigger aria-label="Export content"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="current">Current canvas</SelectItem><SelectItem value="system">Entire system</SelectItem></SelectContent></Select></Field>}
+        <p className="export-note">{format==='json'?'JSON includes every canvas, JavaScript module, embedded URL library source, code and render functions, drafts, saved blocks, data, state, connections, and theme.':format==='svg'?'SVG preserves the diagram structure and shapes. Use Screenshot or Video to include the actual rendered block content.':'HTML includes live renderers. Choose Entire system to navigate nested canvases offline.'}</p>
+        {format!=='json'&&<><div className="export-toggle"><Label htmlFor="export-grid">Dot grid</Label><Switch id="export-grid" checked={options.grid} disabled={busy} onCheckedChange={grid=>{setOptions(current=>({...current,grid}));setDownload(null);}}/></div>{format==='svg'&&<><div className="export-toggle"><Label htmlFor="export-title">Diagram title</Label><Switch id="export-title" checked={options.title} disabled={busy} onCheckedChange={title=>{setOptions(current=>({...current,title}));setDownload(null);}}/></div><div className="export-toggle"><Label htmlFor="export-transparent">Transparent background</Label><Switch id="export-transparent" checked={options.transparent} disabled={busy} onCheckedChange={transparent=>{setOptions(current=>({...current,transparent}));setDownload(null);}}/></div></>}</>}
+      </>}
+    </div></div>
+    {download&&<div className="export-embed"><div><Check/><span>Downloaded {download.filename}</span><Button size="sm" variant="outline" onClick={()=>downloadBlob(download.blob,download.filename)}>Download again</Button></div>{format!=='json'&&<div className="export-embed-code"><Input aria-label="Embed code" readOnly value={embed}/><Button variant="outline" size="sm" onClick={()=>void navigator.clipboard.writeText(embed).then(()=>notify('Embed code copied'),()=>notify('Select and copy the embed code.'))}><Copy/>Copy embed</Button></div>}</div>}
+    {(error||prepared.error)&&<p role="alert" className="json-error">{error||prepared.error}</p>}
+    <DialogFooter><Button variant="outline" disabled={busy} onClick={()=>onOpenChange(false)}>Close</Button><Button disabled={busy||(!live&&format!=='json'&&!prepared.scene)} onClick={()=>void save()}>{busy?<LoaderCircle className="animate-spin"/>:<Download/>}{busy?'Preparing…':live?format==='png'?'Capture screenshot':'Start recording':`Download ${format.toUpperCase()}`}</Button></DialogFooter>
   </DialogContent></Dialog>;
 }

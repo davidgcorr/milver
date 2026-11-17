@@ -99,3 +99,12 @@ it('uses the same mode in the top toolbar, Appearance and saved JSON',async()=>w
   const json=JSON.parse(document.querySelector<HTMLTextAreaElement>('[aria-label="Diagram JSON"]')!.value);
   expect(json.theme.rough).toBe(true);expect(json.theme).not.toHaveProperty('excalidraw');
 }));
+
+it('separates datatypes, interactive controls and imported data into simple library sections',async()=>workspace(async host=>{
+  const sections=[...host.querySelectorAll('#library-panel-blocks .library-category')];
+  const groups=Object.fromEntries(sections.map(section=>[section.querySelector('.category-toggle span')!.textContent,[...section.querySelectorAll('.palette-tile>span:last-child')].map(label=>label.textContent)]));
+  expect(groups['Data types']).toEqual(['Number','Boolean','String','Vector','Matrix','Tensor']);
+  expect(groups.Controls).toEqual(['Slider','Selector','Button']);
+  expect(groups['Data sources']).toEqual(['Text','CSV']);
+  expect(groups).not.toHaveProperty('Sources');
+}));

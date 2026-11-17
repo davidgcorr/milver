@@ -34,6 +34,8 @@ export function demonstration(feature:string,phase=0):Diagram {
  return project([a,b,sum,c,d],[wire(a,b,'input-scale',{route:'bezier',points:[{x:210,y:80}]}),wire(b,sum,'scale-sum',{mask:'pipe'}),wire(sum,c,'sum-view',{mask:'spiral'}),{...wire(d,sum,'offset-sum'),targetHandle:'in-1'}]);
 }
 const copy:Record<string,{kicker:string;title:string;subtitle:string;chips:string[]}>= {
+ capture:{kicker:'LIVE TAB CAPTURE',title:'Share what happened.',subtitle:'Screenshots, videos and GIFs of the real running canvas.',chips:['Live JavaScript','Real tab recording','Clean canvas']},
+ library:{kicker:'SIMPLER BLOCK LIBRARY',title:'Find it. Connect it.',subtitle:'Data types. Interactive controls. External data.',chips:['Six datatypes','Three controls','Text + CSV']},
  excalidraw:{kicker:'EXCALIDRAW MODE',title:'Less chrome. More idea.',subtitle:'Rough outlines. Clear blocks. Labels below.',chips:['One toggle','Reversible styling','Live JavaScript']},
  editing:{kicker:'INLINE VALUE EDITING',title:'Change it. Explore it.',subtitle:'Double-click a value. Edit it on the canvas. See the result.',chips:['Six datatypes','Enter to save','Escape to cancel']},
  overview:{kicker:'VISUAL JAVASCRIPT',title:'Connected ideas.',subtitle:'Build diagrams. Explore math. Keep the code.',chips:['JavaScript blocks','Nested canvases','Portable JSON']},

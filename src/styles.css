@@ -443,3 +443,10 @@ input:disabled, textarea:disabled { opacity: .5; cursor: not-allowed; }
 .sketch-port.react-flow__handle,.palette-glyph .sketch-port{border:0;background:transparent;box-shadow:none}
 .sketch-port:before{display:none}
 .rough-port-outline,.palette-glyph .rough-port-outline{position:absolute;inset:-2px;width:calc(100% + 4px);height:calc(100% + 4px);max-width:none;max-height:none;overflow:visible;pointer-events:none}
+
+.capture-intro{padding:32px 24px;text-align:center;max-width:340px}.capture-intro-icon{margin:0 auto 16px;display:grid;place-items:center;width:54px;height:54px;border:1px solid var(--border);border-radius:12px}.capture-intro-icon svg{width:24px;height:24px}.capture-intro strong{font-size:14px}.capture-intro p{font-size:12px;line-height:1.7;color:var(--muted-foreground);margin-top:8px}.export-formats{flex-wrap:wrap}
+.live-capture .floating-island,.live-capture .left-panel-position,.live-capture .right-panel-position,.live-capture .breadcrumbs,.live-capture [data-slot=dialog-overlay],.live-capture [data-slot=dialog-content],.live-capture .editor-toast,.live-capture .react-flow__minimap,.live-capture .react-flow__resize-control,.live-capture .port-move,.live-capture .block-type-expand,.live-capture .type-collapse,.live-capture .route-point,.live-capture .route-add{visibility:hidden!important}
+.live-capture .diagram-block.block-selected{box-shadow:none}
+.live-capture .route-segment-grip{visibility:hidden!important}
+.export-formats{grid-template-columns:repeat(6,minmax(0,1fr))}
+@media(max-width:650px){.export-formats{grid-template-columns:repeat(3,minmax(0,1fr))}}

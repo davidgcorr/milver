@@ -3,7 +3,7 @@ import { blockPresentation } from './block-presentation';
 import { makeJsNode,jsRecipes } from './js-recipes';
 import { parseDiagram,serializeDiagram } from './model';
 it.each([
-  ['Text',['Sources','Text']],['CSV',['Sources','CSV']],['String',['Sources','String']],['Boolean',['Sources','Boolean']],
+  ['Text',['Data sources','Text']],['CSV',['Data sources','CSV']],['String',['Data types','String']],['Boolean',['Data types','Boolean']],
   ['MatMul',['Operators & functions','Matrix multiply']],
   ['DOM',['JavaScript','Module']],['WebAssembly',['JavaScript','WebAssembly']],
   ['WordTokenizer',['JavaScript','Module','Word tokenizer']],

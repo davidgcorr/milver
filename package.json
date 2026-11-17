@@ -11,7 +11,8 @@
     "pretest": "node scripts/build-project-runtime.mjs",
     "outputs": "node scripts/releases/generate.mjs",
     "outputs:current": "node scripts/releases/generate.mjs --current",
-    "test:releases": "node --test scripts/releases/*.check.mjs"
+    "test:releases": "node --test scripts/releases/*.check.mjs",
+    "test:capture": "node scripts/check-live-capture.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

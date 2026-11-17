@@ -19,8 +19,8 @@ it('matches palette icons and category trails, and highlights code after switchi
     await act(async()=>root.render(createElement(App)));
     await act(async()=>host.querySelector<HTMLElement>('.react-flow__node')!.dispatchEvent(new MouseEvent('click',{bubbles:true})));
     expect(host.querySelector('.selection-icon')?.textContent).toBe(jsRecipes.String.symbol);
-    expect(host.querySelector('.selection-heading>div>span')?.textContent).toBe('Sources > String');
-    expect(host.querySelector('.block-type-trail')?.getAttribute('title')).toBe('Sources > String');
+    expect(host.querySelector('.selection-heading>div>span')?.textContent).toBe('Data types > String');
+    expect(host.querySelector('.block-type-trail')?.getAttribute('title')).toBe('Data types > String');
     await act(async()=>host.querySelector<HTMLButtonElement>('#tab-code')!.click());
     await act(async()=>{await import('./components/codemirror-field');});
     const code=host.querySelector('#panel-code .cm-content')!;

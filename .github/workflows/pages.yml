@@ -198,6 +198,8 @@ jobs:
         run: npm run test:releases
       - name: Build runtime bundles
         run: node scripts/build-project-runtime.mjs
+      - name: Verify native tab capture exports
+        run: npm run test:capture
       - name: Generate social drafts, images, GIFs and videos
         run: npm run outputs
       - name: Generate general current-state media
