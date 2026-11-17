@@ -14,16 +14,63 @@ export function changesFor(sha,cwd=process.cwd()){
   const maintenance=files.every(file=>/^(docs\/|README|\.github\/|scripts\/|outputs\/|package|\.gitignore)/.test(file));
   return {subject,files,parent:parent??null,features:selected.length?selected:['overview'],maintenance};
 }
-export function socialPosts(meta,changes,{general=false}={}){
-  const title=general?'Milver: visual JavaScript in the browser':`Milver ${meta.tag}`;
-  const details=changes.features.map(key=>featureCatalog[key].detail);
-  const label=changes.maintenance?'A maintenance release':'A new release';
-  const summary=general?'Connect JavaScript blocks, explore mathematical ideas and keep the complete project in JSON.':`${label}: ${changes.subject}`;
-  const x=`${title}\n\n${general?'Turn JavaScript and math into diagrams you can explore.':changes.maintenance?'Maintenance update, with a fresh set of product visuals.':`Updated: ${changes.features.map(key=>({overview:'the editor',arrows:'arrow editing',shapes:'block shapes',modules:'JavaScript modules',backups:'project exports'})[key]).join(', ')}.`}\n\n${meta.site}`;
-  if(x.replace(/https?:\/\/\S+/g,'x'.repeat(23)).length>280)throw new Error('X draft exceeds 280 weighted characters.');
-  return {
-    x:x+'\n',
-    reddit:`Title: ${title} — ${general?'a browser-based visual JavaScript tool':changes.maintenance?'maintenance update':changes.features.map(key=>({overview:'editor',arrows:'connections',shapes:'shapes',modules:'modules',backups:'JSON backups'})[key]).join(', ')}\n\n${summary}\n\n${general?'I’m building Milver to make JavaScript and mathematical ideas easier to inspect as connected diagrams.':'What changed in this commit:\n\n- '+changes.subject}\n\n${general?'A few things you can do:':'The attached media illustrates these current capabilities:'}\n\n${details.map(detail=>'- '+detail).join('\n')}\n\nTry it: ${meta.site}\nSource / release: ${meta.releaseUrl}\n\nI’d be interested in feedback on the editing experience and which examples would be most useful.\n\nDisclosure: I’m the developer.\n`,
-    linkedin:`${title}\n\n${summary}\n\n${general?'I’m building Milver for developers and educators who want to explain and explore ideas through connected JavaScript blocks.':'The release is tied to commit '+meta.shortCommit+'.'}\n\n${details.map(detail=>'• '+detail).join('\n')}\n\n${general?'From a graph to a portable project, the goal is to make the idea easier to inspect and share.':'The attached visuals show the related product capabilities; the commit summary above describes this release’s change.'}\n\nExplore Milver: ${meta.site}\n\n#JavaScript #DataVisualization #DeveloperTools\n`,
-  };
+const angles={
+ overview:{
+  hook:'What if the diagram actually ran the code?',
+  x:'Wire JavaScript blocks together. Change an input. Watch the result.\n\nI built Milver to make math and code something you can explore, not just read.',
+  reddit:'I built a browser tool where JavaScript diagrams actually execute — what would you use it to explain?',
+  problem:'A static diagram can explain the structure of a program, but it cannot show what happens when an input changes.',
+  demo:'Connect an input to a JavaScript function, change the input, and inspect the live output without leaving the canvas.',
+  lesson:'A diagram gets more useful when the reader can ask it a question by changing an input.',
+  question:'Which concept would you turn into an interactive diagram first?'
+ },
+ arrows:{
+  hook:'The hardest part of a diagram should not be moving an arrow.',
+  x:'Add Bézier points. Drag any orthogonal segment. Choose a pipe, spiral or rough connection.\n\nSmall editing details make a big difference when you are explaining an idea.',
+  reddit:'I made the connections in my diagram editor directly editable — looking for feedback on routing UX',
+  problem:'When a connection crosses the wrong part of a diagram, rearranging the whole graph just to fix the wire interrupts the explanation.',
+  demo:'Add and drag Bézier waypoints, move an orthogonal segment while its endpoints stay attached, and try different arrow styles.',
+  lesson:'Editing the connection should be as direct as editing the thing it connects.',
+  question:'What is the most frustrating connection-editing behavior in the tools you use?'
+ },
+ shapes:{
+  hook:'Why should every block in a diagram look the same?',
+  x:'Circles, diamonds, polygons—or draw your own Bézier outline.\n\nThe ports follow the border, so the shape stays part of the graph. Built this into Milver.',
+  reddit:'Custom Bézier block outlines with ports that follow the shape — here is the interaction in my editor',
+  problem:'A rectangle is a useful default, but different parts of an explanation sometimes need different visual roles.',
+  demo:'Choose a polygon or edit a Bézier outline with anchors and tangent handles. Resize it and check how the connected ports follow its border.',
+  lesson:'Visual customization matters most when the connections and editing behavior still work.',
+  question:'Would you use custom outlines for meaning, grouping, or just readability?'
+ },
+ modules:{
+  hook:'Your JavaScript module, with a canvas around it.',
+  x:'Import a library. Connect inputs to a function. Move a slider and watch the output change.\n\nThis is live code running in Milver—not a diagram of what the code might do.',
+  reddit:'I put real JavaScript modules on a visual canvas — the clip shows an input changing the function output',
+  problem:'It is easy to draw a function in a diagram and much harder to let someone explore how that function behaves.',
+  demo:'A shared ES module exports double(). A slider feeds an input block, a connected block calls the module, and the output updates in the browser.',
+  lesson:'The useful part is the feedback loop: change the input, inspect the output, and keep the code in view.',
+  question:'What kind of module would you want to inspect this way—numerical code, data transforms, or something else?'
+ },
+ backups:{
+  hook:'A diagram backup should include the code that makes it work.',
+  x:'Milver JSON keeps the blocks, JavaScript, libraries, drafts, nested canvases and saved state together.\n\nAn editable project you can take with you.',
+  reddit:'What should a portable visual-programming project include? Here is the JSON backup format I am building',
+  problem:'Saving the visible blocks is not enough if reopening the project loses the code, library sources, drafts, or nested canvases.',
+  demo:'Inspect the project JSON: it includes the JavaScript module source alongside the graph and its settings. Then reopen it as an editable project.',
+  lesson:'Portability is part of the product experience, not just an export button.',
+  question:'What have you lost when moving a project between visual tools, and what should a backup always preserve?'
+ }
+};
+export function primaryFeature(changes,{general=false}={}) {
+ return general?'overview':changes.features.find(key=>key!=='overview'&&angles[key])??'overview';
+}
+export function socialPosts(meta,changes,options={}){
+ const key=primaryFeature(changes,options),angle=angles[key];
+ const x=`${angle.hook}\n\n${angle.x}\n\n${meta.site}`;
+ if(x.replace(/https?:\/\/\S+/g,'x'.repeat(23)).length>280)throw new Error('X draft exceeds 280 weighted characters.');
+ return {
+  x:x+'\n',
+  reddit:`Title: ${angle.reddit}\n\n${angle.problem}\n\nI am the developer of Milver, a visual JavaScript tool that runs in the browser. I have been working on making this interaction something you can try, rather than a static illustration.\n\nWhat the recording shows:\n\n${angle.demo}\n\nThe graph and its JavaScript stay editable. I am interested in where this interaction is useful and where it gets in the way.\n\n${angle.question}\n\nIf you want to try it: ${meta.site}\n`,
+  linkedin:`${angle.hook}\n\n${angle.problem}\n\nThat is the interaction I have been building in Milver.\n\n${angle.demo}\n\n${angle.lesson}\n\nI see this as useful for developers and educators who want someone to explore an idea for themselves. The attached recording shows the actual interaction in the browser.\n\n${angle.question}\n\nTry it: ${meta.site}\n\n#JavaScript #DataVisualization\n`,
+ };
 }

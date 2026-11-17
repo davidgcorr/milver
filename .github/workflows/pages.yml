@@ -192,6 +192,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - name: Install Chromium for real browser recordings
+        run: npx playwright install --with-deps chromium
       - name: Verify release tooling
         run: npm run test:releases
       - name: Build runtime bundles

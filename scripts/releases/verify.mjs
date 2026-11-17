@@ -11,13 +11,19 @@ for(const file of manifest.files){
  if(bytes.length!==file.bytes||hash!==file.sha256)throw new Error(`Checksum mismatch: ${file.path}`);
  if(path.endsWith('.png')){
   if(bytes.subarray(1,4).toString()!=='PNG')throw new Error('Invalid PNG');
-  const expected=file.path.includes('-square')?[1080,1080]:file.path.includes('-linkedin')?[1200,627]:[1600,900];
+  const expected=file.path.includes('-screen')?[1280,720]:file.path.includes('-square')?[1080,1080]:file.path.includes('-linkedin')?[1200,627]:[1600,900];
   if(bytes.readUInt32BE(16)!==expected[0]||bytes.readUInt32BE(20)!==expected[1])throw new Error('Incorrect image dimensions');
  }
  if(path.endsWith('.gif')&&(!bytes.subarray(0,3).equals(Buffer.from('GIF'))||bytes.readUInt16LE(6)!==640||bytes.readUInt16LE(8)!==360))throw new Error('Invalid GIF');
  if(path.endsWith('.mp4')){
   const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-show_format','-of','json',path],{encoding:'utf8'})),video=probe.streams.find(s=>s.codec_type==='video');
-  if(video?.codec_name!=='h264'||video.width!==1280||video.height!==720||Number(probe.format.duration)<3.9||Number(probe.format.duration)>4.1)throw new Error('Invalid MP4');
+  if(video?.codec_name!=='h264'||video.width!==1280||video.height!==720||Number(probe.format.duration)<3||Number(probe.format.duration)>45||Math.abs(Number(video.avg_frame_rate.split('/')[0])/Number(video.avg_frame_rate.split('/')[1])-30)>0.1)throw new Error('Invalid MP4');
  }
 }
+for(const feature of manifest.features){
+ const recording=manifest.recordings?.[feature];
+ if(!recording||recording.capture!=='chromium-screen-recording'||JSON.stringify(recording.runtimeChecks)!==JSON.stringify([{input:2,output:4},{input:3,output:6},{input:5,output:10}]))throw new Error('Missing verified live browser recording: '+feature);
+ for(const path of [recording.raw,recording.screenshot,`media/${feature}.mp4`,`media/${feature}.gif`])if(!manifest.files.some(file=>file.path===path))throw new Error('Missing recorded media: '+path);
+}
+if(!manifest.gallery?.copyDraft||!manifest.gallery.mobileLayout)throw new Error('Gallery checks did not pass.');
 console.log(`Verified ${manifest.files.length} files for ${manifest.version} (${manifest.commit.slice(0,7)})`);

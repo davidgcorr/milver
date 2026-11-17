@@ -17,13 +17,17 @@ test('versions increase for every main commit, remain stable on rerun and identi
   assert.equal(releaseVersion(first.commit,cwd).version,'1.0.1');
  }finally{rmSync(cwd,{recursive:true,force:true});}
 });
-test('social copy stays grounded in commit notes, distinguishes maintenance, and fits X',()=>{
- const meta={tag:'v1.0.30',shortCommit:'abc1234',site:'https://milver.davidgc.com/',releaseUrl:'https://github.com/davidgcorr/reactflow-recipes/releases/tag/v1.0.30'};
- const changes={subject:'docs: improve hosting guide',features:['overview','arrows','shapes','modules','backups'],maintenance:true};
- const posts=socialPosts(meta,changes);
- assert.ok(posts.x.replace(/https?:\/\/\S+/g,'x'.repeat(23)).length<=280);
- assert.match(posts.x,/Maintenance/);assert.match(posts.reddit,/docs: improve hosting guide/);assert.match(posts.linkedin,/abc1234/);
- assert.doesNotMatch(posts.x,/new feature/i);
+test('social drafts use platform-specific product hooks, stay within X limits, and keep release metadata out',()=>{
+ const meta={tag:'v9.8.765',shortCommit:'abc1234',site:'https://milver.davidgc.com/',releaseUrl:'https://example.com/release'};
+ for(const feature of ['overview','arrows','shapes','modules','backups']){
+  const posts=socialPosts(meta,{subject:'chore: internal plumbing',features:['overview',feature],maintenance:true});
+  assert.ok(posts.x.replace(/https?:\/\/\S+/g,'x'.repeat(23)).length<=280);
+  assert.ok(posts.reddit.startsWith('Title: '));assert.match(posts.reddit,/I am the developer/);
+  assert.ok(posts.linkedin.length>posts.x.length);
+  for(const text of Object.values(posts)){assert.doesNotMatch(text,/v9\.8\.765|abc1234|internal plumbing|maintenance update/i);assert.ok(text.includes(meta.site));}
+ }
+ const modules=socialPosts(meta,{features:['overview','modules']});assert.match(modules.x,/JavaScript module/);assert.match(modules.reddit,/double\(\)/);
+ const general=socialPosts(meta,{features:['modules']},{general:true});assert.match(general.x,/diagram actually ran/);
 });
 test('feature selection and release metadata can be generated from the current commit',()=>{
  const meta=releaseVersion();assert.match(meta.version,/^\d+\.\d+\.\d+$/);assert.match(meta.commit,/^[a-f0-9]{40}$/);
